@@ -5,9 +5,9 @@ const config: CapacitorConfig = {
   appName: 'CyberChat',
   webDir: '.next',
   server: {
-    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    url: 'https://cyberchat-j38i.onrender.com',
     cleartext: true,
-    androidScheme: 'http',
+    androidScheme: 'https',
   },
   android: {
     allowMixedContent: true,
