@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { generateStreamToken, upsertStreamUser } from '@/lib/stream'
-import { getUserByClerkId } from '@/lib/db/sync-user'
+import { syncUser, getUserByClerkId } from '@/lib/db/sync-user'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,8 +9,19 @@ export async function POST(req: NextRequest) {
     const clerkId = session.userId
     if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const user = await getUserByClerkId(clerkId)
-    if (!user) return NextResponse.json({ error: 'User not found in DB' }, { status: 404 })
+    let user = await getUserByClerkId(clerkId)
+    if (!user) {
+      const clerk = await clerkClient()
+      const clerkUser = await clerk.users.getUser(clerkId)
+      user = await syncUser({
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        username: clerkUser.username || '',
+        firstName: clerkUser.firstName || '',
+        lastName: clerkUser.lastName || '',
+        imageUrl: clerkUser.imageUrl || '',
+      })
+    }
 
     await upsertStreamUser(clerkId, user.displayName || user.username || 'User', user.avatarUrl || undefined)
     const token = generateStreamToken(clerkId)
