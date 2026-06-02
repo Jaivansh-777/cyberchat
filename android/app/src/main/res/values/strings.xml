@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CyberChat</string>
+    <string name="title_activity_main">CyberChat</string>
+    <string name="package_name">com.jaivansh.cyberchat</string>
+    <string name="custom_url_scheme">com.jaivansh.cyberchat</string>
+</resources>

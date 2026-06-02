@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  cyberId     String   @unique
+  username    String   @default("")
+  displayName String   @default("")
+  avatarUrl   String?
+  email       String   @default("")
+  phone       String?
+  bio         String?
+  lastSeen    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  friendships      Friendship[]    @relation("UserFriends")
+  friendOf         Friendship[]    @relation("FriendOf")
+  blockers         BlockedUser[]   @relation("Blocker")
+  blocked          BlockedUser[]   @relation("Blocked")
+
+  @@map("users")
+}
+
+model FriendRequest {
+  id        String   @id @default(cuid())
+  senderId  String
+  receiverId String
+  status    String   @default("pending") // pending | accepted | declined
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [clerkId])
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [clerkId])
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userClerkId String
+  friendClerkId String
+  createdAt DateTime @default(now())
+
+  user   User @relation("UserFriends", fields: [userClerkId], references: [clerkId])
+  friend User @relation("FriendOf", fields: [friendClerkId], references: [clerkId])
+
+  @@unique([userClerkId, friendClerkId])
+  @@map("friendships")
+}
+
+model BlockedUser {
+  id          String   @id @default(cuid())
+  blockerClerkId String
+  blockedClerkId  String
+  createdAt   DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerClerkId], references: [clerkId])
+  blocked User @relation("Blocked", fields: [blockedClerkId], references: [clerkId])
+
+  @@unique([blockerClerkId, blockedClerkId])
+  @@map("blocked_users")
+}

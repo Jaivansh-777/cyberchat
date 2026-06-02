@@ -1,0 +1,415 @@
+'use client'
+
+import { useState, useEffect, useRef, use } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
+  MessageCircle, Hash, FileText, Download, X,
+  Smile, User,
+} from 'lucide-react'
+import { useStreamClient } from '@/components/shared/StreamProvider'
+import type { Channel, MessageResponse } from 'stream-chat'
+
+const EMOJI_LIST = ['😀','😂','🤣','❤️','🔥','👍','🎉','🙏','😎','💀','💯','✨','🚀','💪','👀','😭','🥺','🤔']
+
+function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const isImage = file.type.startsWith('image/')
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 mb-2">
+      {isImage ? (
+        <img src={URL.createObjectURL(file)} alt="" className="w-10 h-10 rounded-lg object-cover" />
+      ) : (
+        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-accent" />
+        </div>
+      )}
+      <span className="text-xs text-gray-700 truncate flex-1">{file.name}</span>
+      <button onClick={onRemove} className="p-1 rounded-lg hover:bg-gray-100">
+        <X className="w-4 h-4 text-gray-400" />
+      </button>
+    </div>
+  )
+}
+
+function MessageBubble({ message, isMe }: { message: MessageResponse; isMe: boolean }) {
+  const attachments = message.attachments || []
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className={`flex w-full ${isMe ? 'sent-message' : 'received-message'} mb-2`}
+    >
+      <div className={isMe ? 'message-bubble-sent' : 'message-bubble-received'}>
+        {!isMe && (
+          <p className="text-[10px] text-accent/70 font-medium mb-1">
+            {message.user?.name || message.user?.id || 'Anonymous'}
+          </p>
+        )}
+        {message.text && (
+          <p className="message-text text-sm leading-relaxed">{message.text}</p>
+        )}
+        {attachments.map((att, i) => (
+          <div key={i} className="mt-1">
+            {att.image_url || att.thumb_url ? (
+              <img
+                src={att.image_url || att.thumb_url}
+                alt={att.fallback || 'Image'}
+                className="w-full h-auto rounded-lg"
+                style={{ maxWidth: '100%', display: 'block' }}
+                loading="lazy"
+              />
+            ) : att.asset_url ? (
+              <a
+                href={att.asset_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors"
+              >
+                <FileText className="w-4 h-4 text-accent" />
+                <span className="text-xs truncate">{att.fallback || att.title || 'File'}</span>
+                <Download className="w-3 h-3 text-gray-400 ml-auto" />
+              </a>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div className={`flex items-center gap-1 mt-0.5 ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
+        <span className="text-[10px] text-gray-400">
+          {message.created_at
+            ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : ''}
+        </span>
+        {isMe && (
+          message.status === 'read'
+            ? <CheckCheck className="w-3 h-3 text-accent" />
+            : <Check className="w-3 h-3 text-gray-300" />
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function TypingIndicator() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start mb-2">
+      <div className="message-bubble-received py-3 px-4">
+        <div className="typing-dots flex gap-1">
+          <span className="w-2 h-2" />
+          <span className="w-2 h-2" />
+          <span className="w-2 h-2" />
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
+  const { chatId } = use(params)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const isDM = searchParams?.get('type') === 'messaging'
+  const { client, userId } = useStreamClient()
+
+  const [channel, setChannel] = useState<Channel | null>(null)
+  const [channelName, setChannelName] = useState('')
+  const [otherUserName, setOtherUserName] = useState('')
+  const [messages, setMessages] = useState<MessageResponse[]>([])
+  const [input, setInput] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const [attachFile, setAttachFile] = useState<File | null>(null)
+  const [sending, setSending] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (!client || !chatId || !userId) return
+
+    let cancelled = false
+    let unsubs: (() => void)[] = []
+
+    const loadChannel = async () => {
+      try {
+        const channelType = isDM ? 'messaging' : 'team'
+        const filter = { type: channelType, id: chatId }
+        const result = await client.queryChannels(filter, {}, { watch: true })
+        if (cancelled) return
+
+        let ch: Channel
+        if (result.length > 0) {
+          ch = result[0]
+        } else if (isDM) {
+          return
+        } else {
+          ch = client.channel('team', chatId, {
+            name: chatId.charAt(0).toUpperCase() + chatId.slice(1),
+            team: 'global',
+          } as any)
+          await ch.create()
+        }
+
+        if (!isDM) {
+          await fetch('/api/stream/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          })
+        }
+
+        const chData = ch.data as Record<string, unknown> | undefined
+        const name = (chData?.name as string) || ch.id || chatId
+
+        if (!cancelled) {
+          setChannel(ch)
+          setChannelName(name)
+
+          if (isDM) {
+            const members = Object.keys(ch.state?.members || {})
+            const otherId = members.find((m) => m !== userId)
+            const otherMember = ch.state?.members?.[otherId || '']
+            const otherName = otherMember?.user?.name || otherId || 'User'
+            setOtherUserName(otherName)
+          }
+        }
+
+        const response = await ch.query({ messages: { limit: 100 } })
+        const msgs = (response.messages as unknown as MessageResponse[]).sort(
+          (a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime()
+        )
+        if (!cancelled) setMessages(msgs)
+
+        pollRef.current = setInterval(async () => {
+          if (cancelled) return
+          try {
+            const r = await ch.query({ messages: { limit: 100 } })
+            const newMsgs = (r.messages as unknown as MessageResponse[]).sort(
+              (a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime()
+            )
+            if (!cancelled) setMessages(newMsgs)
+          } catch {}
+        }, 3000)
+      } catch (err) {
+        console.error('Failed to load channel', err)
+      }
+    }
+
+    loadChannel()
+
+    return () => {
+      cancelled = true
+      unsubs.forEach((u) => u())
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [client, chatId, userId, isDM])
+
+  useEffect(() => {
+    if (!channel) return
+
+    const unsubMsg = channel.on('message.new', (e) => {
+      if (e.message) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === e.message!.id)) return prev
+          return [...prev, e.message!]
+        })
+      }
+    })
+    const unsubTyping = channel.on('typing.start', () => setIsTyping(true))
+    const unsubStopTyping = channel.on('typing.stop', () => setIsTyping(false))
+
+    return () => {
+      unsubMsg?.unsubscribe()
+      unsubTyping?.unsubscribe()
+      unsubStopTyping?.unsubscribe()
+    }
+  }, [channel])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const sendTypingEvent = () => {
+    if (!channel) return
+    channel.keystroke()
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      if (channel) channel.stopTyping()
+    }, 2000)
+  }
+
+  const sendMessage = async () => {
+    if (!channel || sending) return
+    const text = input.trim()
+
+    if (!text && !attachFile) return
+
+    setSending(true)
+    try {
+      const attachments: any[] = []
+
+      if (attachFile) {
+        const isImage = attachFile.type.startsWith('image/')
+        const ch = channel as any
+        try {
+          if (isImage) {
+            const resp = await ch.sendImage(attachFile)
+            const url = resp.image || resp.file || resp
+            attachments.push({ image_url: typeof url === 'string' ? url : url.image, fallback: attachFile.name })
+          } else {
+            const resp = await ch.sendFile(attachFile)
+            const url = resp.file || resp
+            attachments.push({ asset_url: typeof url === 'string' ? url : url.file, fallback: attachFile.name, title: attachFile.name })
+          }
+        } catch {
+          attachments.push({ text: `[File: ${attachFile.name}]`, fallback: attachFile.name })
+        }
+      }
+
+      await channel.sendMessage({ text: text || '', attachments })
+      setInput('')
+      setAttachFile(null)
+      setShowEmoji(false)
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    } catch (err) {
+      console.error('Failed to send message', err)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setAttachFile(file)
+    e.target.value = ''
+  }
+
+  const insertEmoji = (emoji: string) => {
+    setInput((prev) => prev + emoji)
+    setShowEmoji(false)
+  }
+
+  const headerTitle = isDM ? (otherUserName || 'User') : `# ${channelName}`
+
+  return (
+    <div className="flex flex-col h-screen bg-white pb-16 md:pb-0">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white/80 backdrop-blur-sm">
+        <motion.button
+          whileTap={{ scale: 0.85 }}
+          onClick={() => router.push('/chats')}
+          className="p-1 rounded-xl hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-400" />
+        </motion.button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`w-9 h-9 rounded-2xl bg-gradient-to-br ${isDM ? 'from-emerald-400 to-teal-500' : 'from-accent/10 to-indigo-500/10'} flex items-center justify-center flex-shrink-0`}>
+            {isDM ? (
+              <span className="text-sm font-bold text-white">
+                {(otherUserName || '?')[0].toUpperCase()}
+              </span>
+            ) : (
+              <Hash className="w-5 h-5 text-accent" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-gray-900 truncate">{headerTitle}</h2>
+            <p className="text-[10px] text-gray-400">{isDM ? 'Direct message' : 'Channel'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto scrollbar-cyber px-4 py-4 space-y-1 bg-gradient-to-b from-white via-blue-50/20 to-indigo-50/10">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/10 to-indigo-500/10 flex items-center justify-center mb-3">
+              <MessageCircle className="w-8 h-8 text-accent/40" />
+            </div>
+            <p className="text-sm text-gray-400">No messages yet. Say hello!</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} isMe={msg.user?.id === userId} />
+            ))}
+          </AnimatePresence>
+        )}
+        {isTyping && <TypingIndicator />}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="px-3 py-2 border-t border-gray-100 flex-shrink-0 bg-white">
+        {attachFile && (
+          <FilePreview file={attachFile} onRemove={() => setAttachFile(null)} />
+        )}
+        {showEmoji && (
+          <div className="flex flex-wrap gap-1 mb-2 p-2 rounded-xl bg-gray-50 border border-gray-200">
+            {EMOJI_LIST.map((e) => (
+              <button
+                key={e}
+                onClick={() => insertEmoji(e)}
+                className="text-xl hover:scale-125 transition-transform"
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt,.zip"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 hover:bg-gray-200 flex-shrink-0"
+          >
+            <Paperclip className="w-5 h-5" />
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => setShowEmoji(!showEmoji)}
+            className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 hover:bg-gray-200 flex-shrink-0"
+          >
+            <Smile className="w-5 h-5" />
+          </motion.button>
+          <div className="flex-1 relative">
+            <input
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value)
+                sendTypingEvent()
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Type a message..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 px-4 pr-12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-accent/50 transition-colors"
+            />
+          </div>
+          {input.trim() || attachFile ? (
+            <motion.button
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              whileTap={{ scale: 0.85 }}
+              onClick={sendMessage}
+              disabled={sending}
+              className="p-2.5 rounded-2xl bg-gradient-to-r from-accent to-accent-dark text-white shadow-sm flex-shrink-0 disabled:opacity-50"
+            >
+              <Send className={`w-5 h-5 ${sending ? 'animate-pulse' : ''}`} />
+            </motion.button>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 flex-shrink-0"
+            >
+              <Mic className="w-5 h-5" />
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
