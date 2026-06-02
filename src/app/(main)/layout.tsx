@@ -1,6 +1,7 @@
 'use client'
 
 import { StreamProvider, useStreamClient } from '@/components/shared/StreamProvider'
+import { VideoProvider } from '@/components/shared/VideoProvider'
 import { MessageCircle, Users, Phone, Settings, User, Hash, Circle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -131,6 +132,7 @@ function AnimatedContent({ children }: { children: React.ReactNode }) {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <StreamProvider>
+      <VideoProvider>
       <div className="flex h-screen overflow-hidden bg-gray-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden">
@@ -138,6 +140,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </main>
         <BottomNav />
       </div>
+      </VideoProvider>
     </StreamProvider>
   )
 }

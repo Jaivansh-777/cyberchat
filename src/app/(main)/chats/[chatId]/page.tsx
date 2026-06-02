@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
   MessageCircle, Hash, FileText, Download, X,
-  Smile, User, Bug,
+  Smile, User, Bug, Phone, Video,
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
+import { CallUI } from '@/components/shared/CallUI'
 import type { Channel, MessageResponse } from 'stream-chat'
 
 const EMOJI_LIST = ['😀','😂','🤣','❤️','🔥','👍','🎉','🙏','😎','💀','💯','✨','🚀','💪','👀','😭','🥺','🤔']
@@ -114,6 +115,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [channel, setChannel] = useState<Channel | null>(null)
   const [channelName, setChannelName] = useState('')
   const [otherUserName, setOtherUserName] = useState('')
+  const [otherUserId, setOtherUserId] = useState('')
   const [messages, setMessages] = useState<MessageResponse[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -122,6 +124,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [showEmoji, setShowEmoji] = useState(false)
   const [showDebug, setShowDebug] = useState(false)
   const [streamConnected, setStreamConnected] = useState(false)
+  const [pendingCall, setPendingCall] = useState<'voice' | 'video' | null>(null)
   const [lastSentMsg, setLastSentMsg] = useState('')
   const [lastReceivedMsg, setLastReceivedMsg] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -194,6 +197,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             const otherMember = ch.state?.members?.[otherId || '']
             const otherName = otherMember?.user?.name || otherId || 'User'
             setOtherUserName(otherName)
+            if (otherId) setOtherUserId(otherId)
           }
         }
 
@@ -342,6 +346,26 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <p className="text-[10px] text-gray-400">{isDM ? 'Direct message' : 'Channel'}</p>
           </div>
         </div>
+        {isDM && (
+          <>
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => setPendingCall('voice')}
+              className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-emerald-500"
+              title="Voice call"
+            >
+              <Phone className="w-4 h-4" />
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => setPendingCall('video')}
+              className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-indigo-500"
+              title="Video call"
+            >
+              <Video className="w-4 h-4" />
+            </motion.button>
+          </>
+        )}
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={() => setShowDebug(!showDebug)}
@@ -457,6 +481,13 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           )}
         </div>
       </div>
+      <CallUI
+        channelId={chatId}
+        otherUserId={otherUserId}
+        currentUserId={userId}
+        callTrigger={pendingCall}
+        onCallTriggered={() => setPendingCall(null)}
+      />
     </div>
   )
 }
