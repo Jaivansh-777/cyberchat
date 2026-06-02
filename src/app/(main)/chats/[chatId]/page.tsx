@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
   MessageCircle, Hash, FileText, Download, X,
-  Smile, User,
+  Smile, User, Bug,
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import type { Channel, MessageResponse } from 'stream-chat'
@@ -120,6 +120,10 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [attachFile, setAttachFile] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
+  const [streamConnected, setStreamConnected] = useState(false)
+  const [lastSentMsg, setLastSentMsg] = useState('')
+  const [lastReceivedMsg, setLastReceivedMsg] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -130,6 +134,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
 
     let cancelled = false
     let unsubs: (() => void)[] = []
+    setStreamConnected(!!client.user)
 
     const loadChannel = async () => {
       try {
@@ -138,11 +143,27 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         const result = await client.queryChannels(filter, {}, { watch: true })
         if (cancelled) return
 
-        let ch: Channel
+        let ch: Channel | null = null
         if (result.length > 0) {
           ch = result[0]
         } else if (isDM) {
-          return
+          const friendId = searchParams?.get('friendId')
+          if (friendId) {
+            const createRes = await fetch('/api/stream/create-dm', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetUserId: friendId }),
+            })
+            if (createRes.ok) {
+              const retry = await client.queryChannels(
+                { type: 'messaging', id: chatId },
+                {},
+                { watch: true }
+              )
+              if (retry.length > 0) ch = retry[0]
+            }
+          }
+          if (!ch) return
         } else {
           ch = client.channel('team', chatId, {
             name: chatId.charAt(0).toUpperCase() + chatId.slice(1),
@@ -150,6 +171,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           } as any)
           await ch.create()
         }
+        if (!ch) return
 
         if (!isDM) {
           await fetch('/api/stream/join', {
@@ -210,6 +232,8 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
 
     const unsubMsg = channel.on('message.new', (e) => {
       if (e.message) {
+        const isMine = e.message.user?.id === userId
+        if (!isMine) setLastReceivedMsg(e.message.text || '[media]')
         setMessages((prev) => {
           if (prev.some((m) => m.id === e.message!.id)) return prev
           return [...prev, e.message!]
@@ -268,6 +292,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       }
 
       await channel.sendMessage({ text: text || '', attachments })
+      setLastSentMsg(text || '[media]')
       setInput('')
       setAttachFile(null)
       setShowEmoji(false)
@@ -317,7 +342,29 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <p className="text-[10px] text-gray-400">{isDM ? 'Direct message' : 'Channel'}</p>
           </div>
         </div>
+        <motion.button
+          whileTap={{ scale: 0.85 }}
+          onClick={() => setShowDebug(!showDebug)}
+          className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-gray-500"
+          title="Toggle debug panel"
+        >
+          <Bug className="w-4 h-4" />
+        </motion.button>
       </div>
+
+      {showDebug && (
+        <div className="px-4 py-3 bg-gray-900 text-green-400 text-[11px] font-mono space-y-1 border-b border-gray-800">
+          <p>User: {userId || '—'}</p>
+          <p>Channel ID: {chatId}</p>
+          <p>Type: {isDM ? 'messaging' : 'team'}</p>
+          <p>Connected: {streamConnected ? 'YES' : 'NO'}</p>
+          <p>Channel loaded: {channel ? 'YES' : 'NO'}</p>
+          <p>Channel name: {channelName || '—'}</p>
+          <p>Messages count: {messages.length}</p>
+          <p>Last sent: {lastSentMsg || '—'}</p>
+          <p>Last received: {lastReceivedMsg || '—'}</p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto scrollbar-cyber px-4 py-4 space-y-1 bg-gradient-to-b from-white via-blue-50/20 to-indigo-50/10">
         {messages.length === 0 ? (

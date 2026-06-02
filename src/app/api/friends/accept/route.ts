@@ -44,9 +44,11 @@ export async function POST(req: NextRequest) {
       })
       await dm.create()
       await dm.addMembers([request.senderId, request.receiverId])
-    } catch {}
+    } catch (error) {
+      console.error('Failed to create DM channel:', error)
+    }
 
-    return NextResponse.json({ ok: true, dmChannelId: dmId })
+    return NextResponse.json({ ok: true, dmChannelId: dmId, friendId: request.senderId })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to accept request' }, { status: 500 })
   }
