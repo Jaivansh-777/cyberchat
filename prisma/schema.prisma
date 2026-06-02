@@ -59,6 +59,24 @@ model Friendship {
   @@map("friendships")
 }
 
+model MediaFile {
+  id             String   @id @default(cuid())
+  userId         String
+  clerkId        String
+  driveFileId    String   @unique
+  fileName       String
+  mimeType       String
+  size           Int
+  webViewLink    String?
+  webContentLink String?
+  folder         String   @default("users")
+  messageId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("media_files")
+}
+
 model BlockedUser {
   id          String   @id @default(cuid())
   blockerClerkId String
