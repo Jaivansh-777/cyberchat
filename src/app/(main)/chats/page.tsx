@@ -37,6 +37,7 @@ function getDMOtherUser(ch: Channel, userId: string) {
     id: otherId || 'unknown',
     name: otherUser?.user?.name || otherId || 'User',
     initial: (otherUser?.user?.name || otherId || 'U')[0].toUpperCase(),
+    avatarUrl: otherUser?.user?.image || '',
   }
 }
 
@@ -174,8 +175,12 @@ export default function ChatsPage() {
                           onClick={() => router.push(`/chats/${ch.id}?type=messaging`)}
                           className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors text-left"
                         >
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-                            {other.initial}
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 overflow-hidden">
+                            {other.avatarUrl ? (
+                              <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              other.initial
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-medium text-gray-900">{other.name}</h3>

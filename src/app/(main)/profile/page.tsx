@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, CheckCircle2, Fingerprint, Share2, QrCode, X, ArrowUpRight, UserPlus, MessageCircle } from 'lucide-react'
+import { Copy, CheckCircle2, Fingerprint, Share2, QrCode, X, Camera, Upload, Loader2 } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import QRCode from 'qrcode'
 import { useRouter } from 'next/navigation'
@@ -13,8 +13,12 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false)
   const [cyberId, setCyberId] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [showQR, setShowQR] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -25,6 +29,7 @@ export default function ProfilePage() {
       .then((data) => {
         setCyberId(data.cyberId || '')
         setDisplayName(data.displayName || user?.fullName || 'User')
+        setAvatarUrl(data.avatarUrl || '')
       })
       .catch(() => {})
   }, [user])
@@ -39,7 +44,28 @@ export default function ProfilePage() {
     }
   }, [showQR, cyberId, appUrl])
 
-  const initial = (displayName || '?')[0].toUpperCase()
+  const initial = (avatarUrl ? '' : (displayName || '?')[0].toUpperCase())
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const dataUrl = URL.createObjectURL(file)
+    setPreviewUrl(dataUrl)
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('avatar', file)
+      const res = await fetch('/api/user/avatar', { method: 'POST', body: formData })
+      if (res.ok) {
+        const data = await res.json()
+        setAvatarUrl(data.avatarUrl)
+        setPreviewUrl(null)
+      }
+    } catch {} finally {
+      setUploading(false)
+    }
+    e.target.value = ''
+  }
 
   const copyId = async () => {
     if (!cyberId) return
@@ -75,13 +101,32 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center py-6 px-4 rounded-3xl bg-white border border-gray-100 shadow-sm"
         >
-          <div className="relative mb-4">
+          <div className="relative mb-4 group">
             <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 via-sky-400 to-indigo-500 p-[3px]">
-              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                <span className="text-4xl font-bold text-blue-500">{initial}</span>
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl font-bold text-blue-500">{initial}</span>
+                )}
               </div>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            </motion.button>
           </div>
 
           <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
@@ -102,7 +147,7 @@ export default function ProfilePage() {
               <Fingerprint className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Your User ID</p>
+              <p className="text-sm font-semibold text-gray-900">Your Cyber ID</p>
               <p className="text-[10px] text-gray-400">Share this to let others chat with you</p>
             </div>
           </div>
@@ -167,7 +212,7 @@ export default function ProfilePage() {
             </div>
             <div className="h-px bg-gray-100" />
             <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-500">User ID</span>
+              <span className="text-sm text-gray-500">Cyber ID</span>
               <span className="text-sm font-mono text-gray-700 text-right truncate max-w-[180px]">
                 {cyberId || '—'}
               </span>

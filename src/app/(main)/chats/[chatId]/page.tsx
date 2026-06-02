@@ -6,13 +6,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
   MessageCircle, Hash, FileText, Download, X,
-  Smile, User, Bug, Phone, Video,
+  Smile, User, Bug, Phone, Video, CornerDownRight,
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { CallUI } from '@/components/shared/CallUI'
 import type { Channel, MessageResponse } from 'stream-chat'
 
 const EMOJI_LIST = ['😀','😂','🤣','❤️','🔥','👍','🎉','🙏','😎','💀','💯','✨','🚀','💪','👀','😭','🥺','🤔']
+const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
 function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
   const isImage = file.type.startsWith('image/')
@@ -33,15 +34,40 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
   )
 }
 
-function MessageBubble({ message, isMe }: { message: MessageResponse; isMe: boolean }) {
+function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
+  message: MessageResponse; isMe: boolean; channel?: Channel | null;
+  onReply?: (msg: MessageResponse) => void; replyingTo?: string | null
+}) {
   const attachments = message.attachments || []
+  const [showReactions, setShowReactions] = useState(false)
+  const reactions = message.latest_reactions || []
+
+  const sendReaction = async (type: string) => {
+    if (!channel) return
+    try {
+      const hasReaction = reactions.some((r) => r.type === type && r.user_id === message.user?.id)
+      if (hasReaction) {
+        await (channel as any).deleteReaction(message.id, type)
+      } else {
+        await (channel as any).sendReaction(message.id, { type, score: 1 })
+      }
+    } catch {}
+    setShowReactions(false)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className={`flex w-full ${isMe ? 'sent-message' : 'received-message'} mb-2`}
+      className={`flex w-full ${isMe ? 'sent-message' : 'received-message'} mb-2 relative group`}
     >
       <div className={isMe ? 'message-bubble-sent' : 'message-bubble-received'}>
+        {message.quoted_message && (
+          <div className={`mb-1.5 pl-2 border-l-2 ${isMe ? 'border-white/40' : 'border-accent/30'} opacity-60`}>
+            <p className="text-[10px] font-medium">{message.quoted_message.user?.name || 'User'}</p>
+            <p className="text-[11px] truncate">{message.quoted_message.text || '[media]'}</p>
+          </div>
+        )}
         {!isMe && (
           <p className="text-[10px] text-accent/70 font-medium mb-1">
             {message.user?.name || message.user?.id || 'Anonymous'}
@@ -74,8 +100,27 @@ function MessageBubble({ message, isMe }: { message: MessageResponse; isMe: bool
             ) : null}
           </div>
         ))}
+        {reactions.length > 0 && (
+          <div className="flex gap-0.5 mt-1.5 flex-wrap">
+            {reactions.map((r, i) => (
+              <span key={i} className="text-xs">{r.type}</span>
+            ))}
+          </div>
+        )}
       </div>
       <div className={`flex items-center gap-1 mt-0.5 ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
+        <button
+          onClick={() => onReply?.(message)}
+          className={`text-[10px] text-gray-300 hover:text-gray-500 transition-colors ${replyingTo === message.id ? 'text-accent' : ''}`}
+        >
+          <CornerDownRight className="w-3 h-3" />
+        </button>
+        <button
+          onClick={() => setShowReactions(!showReactions)}
+          className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors"
+        >
+          +
+        </button>
         <span className="text-[10px] text-gray-400">
           {message.created_at
             ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -87,6 +132,19 @@ function MessageBubble({ message, isMe }: { message: MessageResponse; isMe: bool
             : <Check className="w-3 h-3 text-gray-300" />
         )}
       </div>
+      {showReactions && (
+        <div className={`absolute ${isMe ? 'right-0' : 'left-0'} -bottom-8 flex gap-1 bg-white rounded-xl shadow-lg border border-gray-100 p-1.5 z-10`}>
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => sendReaction(emoji)}
+              className={`text-lg hover:scale-125 transition-transform ${reactions.some(r => r.type === emoji) ? 'scale-110' : ''}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -127,6 +185,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [pendingCall, setPendingCall] = useState<'voice' | 'video' | null>(null)
   const [lastSentMsg, setLastSentMsg] = useState('')
   const [lastReceivedMsg, setLastReceivedMsg] = useState('')
+  const [replyTo, setReplyTo] = useState<MessageResponse | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -244,11 +303,29 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         })
       }
     })
+    const unsubReact = channel.on('reaction.new' as any, (e: any) => {
+      if (!e.message || !e.reaction) return
+      setMessages((prev) => prev.map((m) =>
+        m.id === e.message!.id
+          ? { ...m, latest_reactions: [...(m.latest_reactions || []), e.reaction!] }
+          : m
+      ))
+    })
+    const unsubReactDel = channel.on('reaction.deleted' as any, (e: any) => {
+      if (!e.message || !e.reaction) return
+      setMessages((prev) => prev.map((m) =>
+        m.id === e.message!.id
+          ? { ...m, latest_reactions: (m.latest_reactions || []).filter((r) => r.type !== e.reaction!.type) }
+          : m
+      ))
+    })
     const unsubTyping = channel.on('typing.start', () => setIsTyping(true))
     const unsubStopTyping = channel.on('typing.stop', () => setIsTyping(false))
 
     return () => {
       unsubMsg?.unsubscribe()
+      unsubReact?.unsubscribe()
+      unsubReactDel?.unsubscribe()
       unsubTyping?.unsubscribe()
       unsubStopTyping?.unsubscribe()
     }
@@ -295,11 +372,16 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         }
       }
 
-      await channel.sendMessage({ text: text || '', attachments })
+      const msgOptions: any = { text: text || '', attachments }
+      if (replyTo) {
+        msgOptions.quoted_message_id = replyTo.id
+      }
+      await channel.sendMessage(msgOptions)
       setLastSentMsg(text || '[media]')
       setInput('')
       setAttachFile(null)
       setShowEmoji(false)
+      setReplyTo(null)
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     } catch (err) {
       console.error('Failed to send message', err)
@@ -401,7 +483,8 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         ) : (
           <AnimatePresence>
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} isMe={msg.user?.id === userId} />
+              <MessageBubble key={msg.id} message={msg} isMe={msg.user?.id === userId} channel={channel}
+                onReply={setReplyTo} replyingTo={replyTo?.id || null} />
             ))}
           </AnimatePresence>
         )}
@@ -410,6 +493,17 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       </div>
 
       <div className="px-3 py-2 border-t border-gray-100 flex-shrink-0 bg-white">
+        {replyTo && (
+          <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-blue-50 border border-blue-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-medium text-blue-600">{replyTo.user?.name || 'User'}</p>
+              <p className="text-xs text-gray-600 truncate">{replyTo.text || '[media]'}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1 rounded-lg hover:bg-blue-100">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+        )}
         {attachFile && (
           <FilePreview file={attachFile} onRemove={() => setAttachFile(null)} />
         )}
@@ -454,6 +548,17 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               onChange={(e) => {
                 setInput(e.target.value)
                 sendTypingEvent()
+              }}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items
+                if (!items) return
+                for (const item of items) {
+                  if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile()
+                    if (file) setAttachFile(file)
+                    break
+                  }
+                }
               }}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Type a message..."
