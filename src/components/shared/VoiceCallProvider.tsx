@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Phone, PhoneOff, PhoneIncoming, Volume2, Mic, MicOff } from 'lucide-react'
-import { useStreamVideoClient } from '@stream-io/video-react-bindings'
+import { Phone, PhoneOff, PhoneIncoming, Mic, MicOff } from 'lucide-react'
+import { useStreamVideoClient, useCallStateHooks } from '@stream-io/video-react-bindings'
+import { StreamCall } from '@stream-io/video-react-sdk'
 import type { Call } from '@stream-io/video-client'
 
 interface VoiceCallContextValue {
@@ -62,7 +63,7 @@ function createRingtone() {
     },
     stop() {
       playing = false
-      if (timeout) { clearTimeout(timeout); timeout = null }
+      if (timeout) clearTimeout(timeout)
       if (ctx) { ctx.close(); ctx = null }
       gain = null
     },
@@ -91,6 +92,36 @@ async function requestMicPermission(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function AudioElement({ participant }: { participant: import('@stream-io/video-client').StreamVideoParticipant }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    if (participant.audioStream) {
+      el.srcObject = participant.audioStream
+      el.play().catch(() => {})
+    } else {
+      el.srcObject = null
+    }
+  }, [participant.audioStream, participant.sessionId])
+
+  return <audio ref={audioRef} autoPlay />
+}
+
+function AudioBoundary() {
+  const { useRemoteParticipants } = useCallStateHooks()
+  const participants = useRemoteParticipants()
+  console.log('[VoiceCall] Remote participants:', participants.length, participants.map(p => ({ id: p.userId, hasAudio: !!p.audioStream })))
+  return (
+    <div style={{ display: 'none' }}>
+      {participants.map(p => (
+        <AudioElement key={p.sessionId} participant={p} />
+      ))}
+    </div>
+  )
 }
 
 export function VoiceCallProvider({ children, userId, userName }: {
@@ -127,19 +158,20 @@ export function VoiceCallProvider({ children, userId, userName }: {
 
   useEffect(() => {
     if (!videoClient) { log('No video client'); return }
-    log('Setting up global event listeners')
-    log('Current user:', userId)
+    log('Setting up global event listeners - userId:', userId)
 
     const client = videoClient as any
 
     client.on('call.ring', (e: any) => {
       log('📞 call.ring RECEIVED', {
         callId: e.call?.id,
+        callType: e.call?.type,
         callerId: e.user?.id,
         callerName: e.user?.name,
         members: e.members?.map((m: any) => m.user_id),
       })
 
+      const callType = e.call?.type || 'default'
       const callId = e.call?.id
       const callerId = e.user?.id || ''
       const callerName = e.user?.name || callerId || 'User'
@@ -148,30 +180,29 @@ export function VoiceCallProvider({ children, userId, userName }: {
 
       if (stateRef.current !== 'idle') {
         log('Already in a call — auto-rejecting')
-        if (e.call?.reject) e.call.reject('busy')
+        try {
+          const busyCall = videoClient.call(callType, callId)
+          busyCall.reject('busy')
+        } catch {}
         return
       }
+
+      // CRITICAL: use videoClient.call() to get a real Call instance
+      // e.call is NOT a Call object - it's plain JSON from the event
+      const call = videoClient.call(callType, callId)
+      log('Call instance from client:', { hasAccept: typeof call.accept === 'function', hasReject: typeof call.reject === 'function', hasJoin: typeof call.join === 'function' })
 
       setActiveCallId(callId)
       setCallerInfo({ id: callerId, name: callerName })
       setCallState('incoming')
-
-      if (e.call) {
-        setActiveCall(e.call)
-        log('Call object set from event')
-      } else {
-        log('No call object in event — creating')
-        const call = videoClient.call('default', callId)
-        setActiveCall(call)
-      }
+      setActiveCall(call)
 
       startRingtone(ringtoneRef)
-
       log('✅ Incoming call popup should appear now')
     })
 
     client.on('call.created', (e: any) => {
-      log('📞 call.created received', { callId: e.call?.id, caller: e.user?.id })
+      log('📞 call.created', { callId: e.call?.id, caller: e.user?.id })
     })
 
     client.on('call.accepted', (e: any) => {
@@ -213,7 +244,7 @@ export function VoiceCallProvider({ children, userId, userName }: {
       log('Mic permission:', micOk)
 
       const call: Call = videoClient.call('default', callId)
-      log('Call object created')
+      log('Call instance:', { hasCreate: typeof call.create === 'function' })
 
       await call.create({
         data: { members: [{ user_id: userId }, { user_id: targetUserId }] },
@@ -228,7 +259,7 @@ export function VoiceCallProvider({ children, userId, userName }: {
         log('✅ Remote accepted — joining')
         try {
           await call.join()
-          log('Joined call (accepted)')
+          log('Joined call (after accept)')
           try { await call.microphone.enable(); setMicEnabled(true); log('Mic enabled') } catch (e) { log('Mic enable error:', e) }
           setCallState('connected')
         } catch (e) { log('Join error on accept:', e) }
@@ -264,7 +295,7 @@ export function VoiceCallProvider({ children, userId, userName }: {
 
   const acceptCall = useCallback(async () => {
     if (!activeCall) { log('No active call to accept'); return }
-    log('✅ acceptCall', { callId: activeCallId })
+    log('✅ acceptCall', { callId: activeCallId, hasAccept: typeof activeCall.accept === 'function' })
     stopRingtone(ringtoneRef)
     callStartRef.current = Date.now()
 
@@ -272,6 +303,7 @@ export function VoiceCallProvider({ children, userId, userName }: {
       const micOk = await requestMicPermission()
       log('Mic permission:', micOk)
 
+      // CRITICAL: activeCall is a real Call instance from videoClient.call()
       await activeCall.accept()
       log('Call accepted')
 
@@ -292,11 +324,11 @@ export function VoiceCallProvider({ children, userId, userName }: {
   }, [activeCall, activeCallId, cleanupActiveCall, log])
 
   const rejectCall = useCallback(async () => {
-    log('❌ rejectCall', { activeCallId })
+    log('❌ rejectCall', { activeCallId, hasReject: activeCall ? typeof activeCall.reject === 'function' : false })
     stopRingtone(ringtoneRef)
     if (activeCall) {
-      try { await activeCall.reject(); log('Call rejected') } catch {}
-      try { await activeCall.leave(); log('Left call') } catch {}
+      try { await activeCall.reject(); log('Call rejected') } catch (e) { log('Reject error:', e) }
+      try { await activeCall.leave(); log('Left call') } catch (e) { log('Leave error:', e) }
     }
     if (activeCallId) {
       await fetch('/api/calls/log', {
@@ -313,7 +345,7 @@ export function VoiceCallProvider({ children, userId, userName }: {
     stopRingtone(ringtoneRef)
     if (activeCall) {
       try { await activeCall.microphone.disable() } catch {}
-      try { await activeCall.leave(); log('Left call') } catch {}
+      try { await activeCall.leave(); log('Left call') } catch (e) { log('Leave error:', e) }
     }
     const duration = callStartRef.current ? Math.floor((Date.now() - callStartRef.current) / 1000) : null
     if (activeCallId && duration !== null) {
@@ -327,19 +359,19 @@ export function VoiceCallProvider({ children, userId, userName }: {
   }, [activeCall, activeCallId, callState, cleanupActiveCall, log])
 
   const displayName = callerInfo.name || targetUserName || 'User'
+  const inCall = callState === 'connected'
+  const hasCall = callState !== 'idle'
 
   return (
     <VoiceCallContext.Provider value={{ initiateCall, endCall, callState, activeCallId }}>
       {children}
 
-      {/* Debug panel */}
+      {/* Debug overlay (hidden by default, shown by setting hidden=false) */}
       <div className="fixed bottom-20 left-2 z-[300] text-[10px] font-mono text-green-400 bg-black/80 rounded-lg p-2 max-w-[200px] hidden">
-        <p>callState: {callState}</p>
+        <p>state: {callState}</p>
         <p>callId: {activeCallId || '—'}</p>
         <p>caller: {callerInfo.name || '—'}</p>
         <p>mic: {micEnabled ? 'ON' : 'OFF'}</p>
-        <p>videoClient: {videoClient ? 'OK' : 'NONE'}</p>
-        <p>userId: {userId}</p>
       </div>
 
       <AnimatePresence>
@@ -389,6 +421,13 @@ export function VoiceCallProvider({ children, userId, userName }: {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black/90 flex flex-col items-center justify-center"
           >
+            {/* CRITICAL: Wrap active call in StreamCall + AudioBoundary for audio binding */}
+            {activeCall && (
+              <StreamCall call={activeCall}>
+                <AudioBoundary />
+              </StreamCall>
+            )}
+
             {callState === 'outgoing' && (
               <div className="flex flex-col items-center gap-6">
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-3xl font-bold text-white animate-pulse">
