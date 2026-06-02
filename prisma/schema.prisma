@@ -27,6 +27,7 @@ model User {
   friendOf         Friendship[]    @relation("FriendOf")
   blockers         BlockedUser[]   @relation("Blocker")
   blocked          BlockedUser[]   @relation("Blocked")
+  groupMemberships GroupMember[]
 
   @@map("users")
 }
@@ -88,4 +89,47 @@ model BlockedUser {
 
   @@unique([blockerClerkId, blockedClerkId])
   @@map("blocked_users")
+}
+
+model Group {
+  id         String   @id @default(cuid())
+  name       String
+  description String  @default("")
+  avatarUrl  String?
+  inviteCode String   @unique @default(cuid())
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members GroupMember[]
+  streamChannelId String @default("")
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  clerkId   String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user   User  @relation(fields: [clerkId], references: [clerkId])
+
+  @@unique([groupId, clerkId])
+  @@map("group_members")
+}
+
+model CallLog {
+  id            String   @id @default(cuid())
+  callerId      String
+  receiverId    String
+  callType      String   // "audio" | "video"
+  status        String   // "missed" | "completed" | "cancelled"
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+  duration      Int?     // seconds
+
+  @@map("call_logs")
 }

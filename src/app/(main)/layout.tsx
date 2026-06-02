@@ -2,7 +2,7 @@
 
 import { StreamProvider, useStreamClient } from '@/components/shared/StreamProvider'
 import { VideoProvider } from '@/components/shared/VideoProvider'
-import { MessageCircle, Users, Phone, Settings, User, Hash, Circle } from 'lucide-react'
+import { MessageCircle, Users, Phone, Settings, User, Hash, Circle, UsersRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -12,8 +12,9 @@ import { useIncomingRequestCount } from '@/hooks/useIncomingRequestCount'
 
 const navItems = [
   { href: '/status', icon: Circle, label: 'Status' },
+  { href: '/groups', icon: UsersRound, label: 'Groups' },
   { href: '/chats', icon: MessageCircle, label: 'Chats' },
-  { href: '/friends', icon: Users, label: 'Add' },
+  { href: '/friends', icon: Users, label: 'Friends' },
   { href: '/calls', icon: Phone, label: 'Calls' },
   { href: '/profile', icon: User, label: 'Profile' },
 ]

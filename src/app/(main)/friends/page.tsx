@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Search, UserPlus, UserCheck, AlertCircle,
-  Loader2, ArrowRight, Check, X, Clock, MessageCircle, UserX, UserMinus,
+  Loader2, ArrowRight, Check, X, Clock, MessageCircle, UserMinus,
 } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import { getDmChannelId } from '@/lib/dm-channel'
@@ -35,6 +35,16 @@ interface Friend {
   avatar: string
   lastSeen: string
   since: string
+}
+
+function Avatar({ url, name, size = 'md' }: { url?: string; name: string; size?: 'sm' | 'md' | 'lg' }) {
+  const dim = size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-14 h-14' : 'w-10 h-10'
+  const text = size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-xl' : 'text-sm'
+  return (
+    <div className={`${dim} rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center ${text} font-bold text-white flex-shrink-0 overflow-hidden`}>
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : (name || '?')[0].toUpperCase()}
+    </div>
+  )
 }
 
 export default function FriendsPage() {
@@ -126,6 +136,17 @@ export default function FriendsPage() {
     } catch {} finally {
       setRequestLoading(false)
     }
+  }
+
+  const cancelRequest = async (toCyberId: string) => {
+    try {
+      await fetch('/api/friends/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toCyberId }),
+      })
+      loadData()
+    } catch {}
   }
 
   const acceptRequest = async (requestId: string) => {
@@ -229,9 +250,7 @@ export default function FriendsPage() {
             <div className="space-y-2">
               {incoming.map((req) => (
                 <div key={req.id} className="flex items-center gap-3 p-3 rounded-2xl bg-amber-50 border border-amber-200">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center text-sm font-bold text-blue-500 flex-shrink-0">
-                    {(req.senderName || '?')[0].toUpperCase()}
-                  </div>
+                  <Avatar url={req.senderAvatar} name={req.senderName} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{req.senderName}</p>
                     <p className="text-[10px] font-mono text-gray-400">{req.senderCyberId}</p>
@@ -275,14 +294,22 @@ export default function FriendsPage() {
             <div className="space-y-2">
               {outgoing.map((req) => (
                 <div key={req.id} className="flex items-center gap-3 p-3 rounded-2xl bg-blue-50 border border-blue-200">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400/30 to-gray-500/30 flex items-center justify-center text-sm font-bold text-gray-500 flex-shrink-0">
-                    {(req.receiverName || '?')[0].toUpperCase()}
-                  </div>
+                  <Avatar url={req.receiverAvatar} name={req.receiverName} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{req.receiverName}</p>
                     <p className="text-[10px] font-mono text-gray-400">{req.receiverCyberId}</p>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-medium bg-white px-2 py-1 rounded-lg">Pending</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-400 font-medium bg-white px-2 py-1 rounded-lg">Pending</span>
+                    <motion.button
+                      whileTap={{ scale: 0.85 }}
+                      onClick={() => cancelRequest(req.receiverCyberId)}
+                      className="p-1.5 rounded-xl bg-red-100 text-red-500 hover:bg-red-200"
+                      title="Cancel request"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </motion.button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -306,9 +333,7 @@ export default function FriendsPage() {
             <div className="space-y-2">
               {friends.map((f) => (
                 <div key={f.clerkId} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-                    {(f.name || '?')[0].toUpperCase()}
-                  </div>
+                  <Avatar url={f.avatar} name={f.name} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{f.name}</p>
                     <p className="text-[10px] font-mono text-gray-400">{f.cyberId}</p>
@@ -387,9 +412,7 @@ export default function FriendsPage() {
               >
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-blue-50 border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
-                      {(foundUser.name || '?')[0].toUpperCase()}
-                    </div>
+                    <Avatar url={foundUser.image} name={foundUser.name} />
                     <div>
                       <p className="text-sm font-medium text-gray-900">{foundUser.name}</p>
                       <p className="text-[10px] text-gray-400 font-mono">{foundUser.cyberId}</p>

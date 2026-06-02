@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
         userId: m.user?.id || '',
         userName: m.user?.name || m.user?.id || 'Unknown',
         content: m.text || '',
+        imageUrl: m.attachments?.[0]?.image_url || '',
         timestamp: m.created_at ? new Date(m.created_at).getTime() : 0,
       }))
 

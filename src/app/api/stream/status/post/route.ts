@@ -8,8 +8,8 @@ export async function POST(req: NextRequest) {
     const clerkId = session.userId
     if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { content } = await req.json()
-    if (!content) return NextResponse.json({ error: 'Missing content' }, { status: 400 })
+    const { content, imageUrl } = await req.json()
+    if (!content && !imageUrl) return NextResponse.json({ error: 'Missing content or image' }, { status: 400 })
 
     const server = getStreamServer()
     const ch = server.channel('team', 'status_updates', {
@@ -19,10 +19,15 @@ export async function POST(req: NextRequest) {
     await ch.create()
     await ch.addMembers([clerkId])
 
-    await ch.sendMessage({
-      text: content,
-      user_id: clerkId,
-    } as any)
+    const msgData: any = {}
+    if (content) msgData.text = content
+    if (imageUrl) {
+      msgData.attachments = [{ image_url: imageUrl, type: 'image' }]
+      msgData.text = msgData.text || ''
+    }
+    msgData.user_id = clerkId
+
+    await ch.sendMessage(msgData as any)
 
     return NextResponse.json({ ok: true })
   } catch {

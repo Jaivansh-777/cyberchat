@@ -8,6 +8,15 @@ const config: CapacitorConfig = {
     url: 'https://cyberchat-j38i.onrender.com',
     cleartext: false,
     androidScheme: 'https',
+    allowNavigation: ['cyberchat-j38i.onrender.com'],
+  },
+  android: {
+    allowMixedContent: false,
+  },
+  plugins: {
+    CapacitorCookies: {
+      enabled: true,
+    },
   },
 };
 

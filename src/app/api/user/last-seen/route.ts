@@ -1,0 +1,20 @@
+import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/prisma'
+
+export async function POST() {
+  try {
+    const session = await auth()
+    const clerkId = session.userId
+    if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    await prisma.user.update({
+      where: { clerkId },
+      data: { lastSeen: new Date() },
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+  }
+}
