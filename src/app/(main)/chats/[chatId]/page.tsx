@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
   MessageCircle, Hash, FileText, Download, X,
-  Smile, User, Bug, Phone, Video, CornerDownRight,
+  Smile, User, Bug, Phone, CornerDownRight,
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { CallUI } from '@/components/shared/CallUI'
@@ -182,7 +182,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [showEmoji, setShowEmoji] = useState(false)
   const [showDebug, setShowDebug] = useState(false)
   const [streamConnected, setStreamConnected] = useState(false)
-  const [pendingCall, setPendingCall] = useState<'voice' | 'video' | null>(null)
+  const [pendingCall, setPendingCall] = useState<'voice' | null>(null)
   const [lastSentMsg, setLastSentMsg] = useState('')
   const [lastReceivedMsg, setLastReceivedMsg] = useState('')
   const [replyTo, setReplyTo] = useState<MessageResponse | null>(null)
@@ -429,24 +429,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           </div>
         </div>
         {isDM && (
-          <>
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={() => setPendingCall('voice')}
-              className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-emerald-500"
-              title="Voice call"
-            >
-              <Phone className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={() => setPendingCall('video')}
-              className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-indigo-500"
-              title="Video call"
-            >
-              <Video className="w-4 h-4" />
-            </motion.button>
-          </>
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => setPendingCall('voice')}
+            className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-emerald-500"
+            title="Voice call"
+          >
+            <Phone className="w-4 h-4" />
+          </motion.button>
         )}
         <motion.button
           whileTap={{ scale: 0.85 }}

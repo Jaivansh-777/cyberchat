@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Phone, Video, History, PhoneCall, PhoneMissed, PhoneOff, Clock, ArrowRight, User } from 'lucide-react'
+import { Phone, History, PhoneCall, PhoneMissed, PhoneOff, Clock } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 
@@ -54,9 +54,9 @@ export default function CallsPage() {
     load()
   }, [])
 
-  const startCall = async (type: 'audio' | 'video') => {
+  const startCall = async () => {
     const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-    router.push(`/call/${callId}?type=${type}`)
+    router.push(`/call/${callId}?type=audio`)
   }
 
   return (
@@ -70,22 +70,14 @@ export default function CallsPage() {
         </div>
       </div>
 
-      <div className="flex gap-3 px-4 py-4">
+      <div className="px-4 py-4">
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => startCall('audio')}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-medium shadow-sm"
+          onClick={startCall}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-medium shadow-sm"
         >
           <PhoneCall className="w-5 h-5" />
-          Voice Call
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => startCall('video')}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-500 text-white font-medium shadow-sm"
-        >
-          <Video className="w-5 h-5" />
-          Video Call
+          New Voice Call
         </motion.button>
       </div>
 

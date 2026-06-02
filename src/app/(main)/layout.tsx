@@ -2,10 +2,12 @@
 
 import { StreamProvider, useStreamClient } from '@/components/shared/StreamProvider'
 import { VideoProvider } from '@/components/shared/VideoProvider'
-import { MessageCircle, Users, Phone, Settings, User, Hash, Circle, UsersRound } from 'lucide-react'
+import { VoiceCallProvider } from '@/components/shared/VoiceCallProvider'
+import { NotificationProvider } from '@/components/shared/NotificationProvider'
+import { MessageCircle, Users, Phone, User, Hash, Circle, UsersRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserButton, useUser } from '@clerk/nextjs'
 import { useIncomingRequestCount } from '@/hooks/useIncomingRequestCount'
@@ -38,35 +40,26 @@ function Sidebar() {
           </div>
         </Link>
       </div>
-
       <nav className="flex-1 py-4 px-3 space-y-1">
         {navItems.map((item) => {
           const active = currentBase === item.href
           const Icon = item.icon
           return (
-            <Link
-              key={item.href}
-              href={item.href}
+            <Link key={item.href} href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm ${
-                active
-                  ? 'bg-blue-50 text-blue-600 font-medium'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-                  <div className="relative">
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
-                    {item.href === '/friends' && requestCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center shadow">
-                        {requestCount}
-                      </span>
-                    )}
-                  </div>
-                  <span>{item.label}</span>
+                active ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}>
+              <div className="relative">
+                <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
+                {item.href === '/friends' && requestCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center shadow">{requestCount}</span>
+                )}
+              </div>
+              <span>{item.label}</span>
             </Link>
           )
         })}
       </nav>
-
       <div className="px-4 py-3 border-t border-gray-100">
         <div className="flex items-center gap-2.5">
           <UserButton />
@@ -89,19 +82,14 @@ function BottomNav() {
           const active = currentBase === item.href
           const Icon = item.icon
           return (
-            <Link
-              key={item.href}
-              href={item.href}
+            <Link key={item.href} href={item.href}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
                 active ? 'text-blue-500' : 'text-gray-400'
-              }`}
-            >
+              }`}>
               <div className="relative">
                 <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
                 {item.href === '/friends' && requestCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[7px] font-bold text-white flex items-center justify-center shadow">
-                    {requestCount}
-                  </span>
+                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[7px] font-bold text-white flex items-center justify-center shadow">{requestCount}</span>
                 )}
               </div>
               <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
@@ -117,31 +105,39 @@ function AnimatedContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   return (
     <AnimatePresence mode="wait">
-      <motion.div
-        key={pathname}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-      >
+      <motion.div key={pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
         {children}
       </motion.div>
     </AnimatePresence>
   )
 }
 
+function AppProviders({ children }: { children: React.ReactNode }) {
+  const { client, userId, userName } = useStreamClient()
+
+  return (
+    <VideoProvider>
+      <VoiceCallProvider userId={userId} userName={userName}>
+        <NotificationProvider userId={userId}>
+          <div className="flex h-screen overflow-hidden bg-gray-50">
+            <Sidebar />
+            <main className="flex-1 overflow-hidden">
+              <AnimatedContent>{children}</AnimatedContent>
+            </main>
+            <BottomNav />
+          </div>
+        </NotificationProvider>
+      </VoiceCallProvider>
+    </VideoProvider>
+  )
+}
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <StreamProvider>
-      <VideoProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
-        <Sidebar />
-        <main className="flex-1 overflow-hidden">
-          <AnimatedContent>{children}</AnimatedContent>
-        </main>
-        <BottomNav />
-      </div>
-      </VideoProvider>
+      <AppProviders>
+        {children}
+      </AppProviders>
     </StreamProvider>
   )
 }

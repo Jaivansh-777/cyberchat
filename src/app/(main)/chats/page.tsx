@@ -3,15 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Hash, Users, Shield, User } from 'lucide-react'
+import { MessageCircle, Hash, Users } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import type { Channel } from 'stream-chat'
-
-const defaultChannels = [
-  { id: 'general', name: 'General', description: 'General discussion' },
-  { id: 'random', name: 'Random', description: 'Random stuff' },
-  { id: 'tech', name: 'Tech', description: 'Tech talk' },
-]
 
 function ChannelListSkeleton() {
   return (
@@ -58,33 +52,7 @@ export default function ChatsPage() {
       })
 
       const filter = { members: { $in: [userId] } }
-      let result = await client.queryChannels(filter, { last_message_at: -1 } as any, { watch: true })
-
-      const teamChannels = result.filter((ch) => ch.type === 'team')
-
-      if (teamChannels.length === 0) {
-        const newChs: Channel[] = []
-        for (const dc of defaultChannels) {
-          try {
-            const ch = client.channel('team', dc.id, {
-              name: dc.name,
-              description: dc.description,
-              team: 'global',
-            } as any)
-            await ch.create()
-            newChs.push(ch)
-          } catch (e) {
-            console.warn('Channel create error', dc.id, e)
-          }
-        }
-        await fetch('/api/stream/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId }),
-        })
-        const updated = await client.queryChannels(filter, { last_message_at: -1 } as any, { watch: true })
-        return updated
-      }
+      const result = await client.queryChannels(filter, { last_message_at: -1 } as any, { watch: true })
 
       return result
     } catch (err) {
@@ -131,7 +99,7 @@ export default function ChatsPage() {
       <div className="px-5 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent to-indigo-500 flex items-center justify-center shadow-sm">
-            <Shield className="w-5 h-5 text-white" />
+            <Hash className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-gradient">CyberChat</h1>
