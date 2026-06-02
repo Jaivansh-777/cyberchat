@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
   '/download(.*)',
   '/CyberChat.apk',
+  '/find(.*)',
 ])
 
 export default clerkMiddleware(async (auth, req) => {

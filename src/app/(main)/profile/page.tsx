@@ -1,15 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Copy, CheckCircle2, Fingerprint, Share2, QrCode } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Copy, CheckCircle2, Fingerprint, Share2, QrCode, X, ArrowUpRight, UserPlus, MessageCircle } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+import QRCode from 'qrcode'
+import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
   const { user } = useUser()
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
   const [cyberId, setCyberId] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [showQR, setShowQR] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   useEffect(() => {
     fetch('/api/user/me')
@@ -21,6 +29,16 @@ export default function ProfilePage() {
       .catch(() => {})
   }, [user])
 
+  useEffect(() => {
+    if (showQR && cyberId) {
+      QRCode.toDataURL(`${appUrl}/find/${cyberId}`, {
+        width: 280,
+        margin: 2,
+        color: { dark: '#1e293b', light: '#ffffff' },
+      }).then(setQrDataUrl)
+    }
+  }, [showQR, cyberId, appUrl])
+
   const initial = (displayName || '?')[0].toUpperCase()
 
   const copyId = async () => {
@@ -30,6 +48,19 @@ export default function ProfilePage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {}
+  }
+
+  const shareProfile = async () => {
+    const url = `${appUrl}/find/${cyberId}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: displayName, text: `Chat with me on CyberChat! My ID: ${cyberId}`, url })
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (
@@ -89,7 +120,7 @@ export default function ProfilePage() {
           </div>
           {copied && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-600 mt-2">
-              Copied to clipboard!
+              Copied!
             </motion.p>
           )}
         </motion.div>
@@ -100,18 +131,26 @@ export default function ProfilePage() {
           transition={{ delay: 0.15 }}
           className="grid grid-cols-2 gap-3"
         >
-          <button className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white border border-gray-100 shadow-sm hover:border-blue-500/30 hover:shadow-md transition-all">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={shareProfile}
+            className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white border border-gray-100 shadow-sm hover:border-blue-500/30 hover:shadow-md transition-all"
+          >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center">
               <Share2 className="w-5 h-5 text-blue-500" />
             </div>
             <span className="text-xs font-medium text-gray-700">Share Profile</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white border border-gray-100 shadow-sm hover:border-blue-500/30 hover:shadow-md transition-all">
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowQR(true)}
+            className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white border border-gray-100 shadow-sm hover:border-blue-500/30 hover:shadow-md transition-all"
+          >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-400/10 to-pink-500/10 flex items-center justify-center">
               <QrCode className="w-5 h-5 text-purple-600" />
             </div>
             <span className="text-xs font-medium text-gray-700">My QR Code</span>
-          </button>
+          </motion.button>
         </motion.div>
 
         <motion.div
@@ -141,6 +180,42 @@ export default function ProfilePage() {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showQR && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowQR(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-xs text-center shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Your QR Code</h3>
+                <button onClick={() => setShowQR(false)} className="p-1 rounded-xl hover:bg-gray-100">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Code" className="w-64 h-64 mx-auto rounded-2xl" />
+              ) : (
+                <div className="w-64 h-64 mx-auto rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-4">Scan to chat with me on CyberChat</p>
+              <p className="text-xs font-mono text-gray-600 mt-1">{cyberId}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
