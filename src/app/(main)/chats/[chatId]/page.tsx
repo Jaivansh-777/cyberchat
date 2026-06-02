@@ -579,6 +579,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       <CallUI
         channelId={chatId}
         otherUserId={otherUserId}
+        otherUserName={otherUserName}
         currentUserId={userId}
         callTrigger={pendingCall}
         onCallTriggered={() => setPendingCall(null)}

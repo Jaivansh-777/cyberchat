@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Phone, History, PhoneCall, PhoneMissed, PhoneOff, Clock } from 'lucide-react'
+import { History, PhoneCall, PhoneMissed, PhoneOff, Phone } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
 
 interface CallLog {
   id: string
@@ -35,7 +34,6 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 export default function CallsPage() {
-  const router = useRouter()
   const { user } = useUser()
   const clerkId = user?.id || ''
   const [callLogs, setCallLogs] = useState<CallLog[]>([])
@@ -54,11 +52,6 @@ export default function CallsPage() {
     load()
   }, [])
 
-  const startCall = async () => {
-    const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-    router.push(`/call/${callId}?type=audio`)
-  }
-
   return (
     <div className="h-full bg-white flex flex-col pb-16 md:pb-0">
       <div className="px-5 py-4 border-b border-gray-100">
@@ -71,14 +64,10 @@ export default function CallsPage() {
       </div>
 
       <div className="px-4 py-4">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={startCall}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-medium shadow-sm"
-        >
+        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gray-100 text-gray-400 text-sm">
           <PhoneCall className="w-5 h-5" />
-          New Voice Call
-        </motion.button>
+          Start calls from any chat
+        </div>
       </div>
 
       <div className="px-4 pb-2">
