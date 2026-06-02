@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserButton, useUser } from '@clerk/nextjs'
+import { useIncomingRequestCount } from '@/hooks/useIncomingRequestCount'
 
 const navItems = [
   { href: '/status', icon: Circle, label: 'Status' },
@@ -19,6 +20,7 @@ const navItems = [
 function Sidebar() {
   const pathname = usePathname()
   const { user } = useUser()
+  const requestCount = useIncomingRequestCount()
   const currentBase = '/' + pathname.split('/')[1]
 
   return (
@@ -49,8 +51,15 @@ function Sidebar() {
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
-              <span>{item.label}</span>
+                  <div className="relative">
+                    <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
+                    {item.href === '/friends' && requestCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center shadow">
+                        {requestCount}
+                      </span>
+                    )}
+                  </div>
+                  <span>{item.label}</span>
             </Link>
           )
         })}
@@ -68,6 +77,7 @@ function Sidebar() {
 
 function BottomNav() {
   const pathname = usePathname()
+  const requestCount = useIncomingRequestCount()
   const currentBase = '/' + pathname.split('/')[1]
 
   return (
@@ -84,7 +94,14 @@ function BottomNav() {
                 active ? 'text-blue-500' : 'text-gray-400'
               }`}
             >
-              <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
+              <div className="relative">
+                <Icon className={`w-5 h-5 ${active ? 'text-blue-500' : ''}`} />
+                {item.href === '/friends' && requestCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[7px] font-bold text-white flex items-center justify-center shadow">
+                    {requestCount}
+                  </span>
+                )}
+              </div>
               <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
             </Link>
           )

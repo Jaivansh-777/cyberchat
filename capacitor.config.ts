@@ -6,17 +6,8 @@ const config: CapacitorConfig = {
   webDir: '.next',
   server: {
     url: 'https://cyberchat-j38i.onrender.com',
-    cleartext: true,
+    cleartext: false,
     androidScheme: 'https',
-  },
-  android: {
-    allowMixedContent: true,
-    captureInput: true,
-  },
-  plugins: {
-    CapacitorHttp: {
-      enabled: true,
-    },
   },
 };
 

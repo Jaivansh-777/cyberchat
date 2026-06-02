@@ -15,6 +15,7 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
   const [notFound, setNotFound] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
   const [requestLoading, setRequestLoading] = useState(false)
+  const [requestError, setRequestError] = useState('')
 
   useEffect(() => {
     if (!isLoaded) return
@@ -25,22 +26,14 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
 
     const fetchUser = async () => {
       try {
-        const res = await fetch('/api/stream/find-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cyberId: params.cyberId }),
-        })
-        if (res.status === 404) {
-          setNotFound(true)
-        } else if (res.ok) {
+        const res = await fetch(`/api/friends/find-user?cyberId=${encodeURIComponent(params.cyberId)}`)
+        if (res.status === 404) setNotFound(true)
+        else if (res.ok) {
           const data = await res.json()
           setFoundUser(data.user)
         }
-      } catch {
-        setNotFound(true)
-      } finally {
-        setLoading(false)
-      }
+      } catch { setNotFound(true) }
+      finally { setLoading(false) }
     }
     fetchUser()
   }, [isLoaded, user, params.cyberId, router])
@@ -48,8 +41,9 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
   const sendRequest = async () => {
     if (!foundUser) return
     setRequestLoading(true)
+    setRequestError('')
     try {
-      const res = await fetch('/api/stream/send-request', {
+      const res = await fetch('/api/friends/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toCyberId: foundUser.cyberId }),
@@ -57,11 +51,11 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
       if (res.ok) setRequestSent(true)
       else {
         const data = await res.json()
-        if (data.error === 'Request already sent') setRequestSent(true)
+        if (data.error === 'Request already sent' || data.error === 'Already friends') setRequestSent(true)
+        else setRequestError(data.error || 'Failed to send request')
       }
-    } catch {} finally {
-      setRequestLoading(false)
-    }
+    } catch { setRequestError('Network error') }
+    finally { setRequestLoading(false) }
   }
 
   if (!isLoaded) {
@@ -88,11 +82,7 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
             <p className="text-sm text-gray-400">Finding user...</p>
           </div>
         ) : notFound ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-sm"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm">
             <div className="w-20 h-20 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-10 h-10 text-red-400" />
             </div>
@@ -100,19 +90,12 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
             <p className="text-sm text-gray-400 mb-6">
               No user with ID <span className="font-mono text-gray-600">{params.cyberId}</span>
             </p>
-            <Link
-              href="/friends"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-500 text-white text-sm font-medium"
-            >
+            <Link href="/friends" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-500 text-white text-sm font-medium">
               Search Again
             </Link>
           </motion.div>
         ) : foundUser ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-sm w-full"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm w-full">
             <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 p-[3px] mx-auto mb-4">
               <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
                 {foundUser.image ? (
@@ -150,10 +133,11 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
                 </motion.button>
               )}
 
-              <Link
-                href="/chats"
-                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
+              {requestError && (
+                <p className="text-xs text-red-500 mt-1">{requestError}</p>
+              )}
+
+              <Link href="/chats" className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
                 <MessageCircle className="w-4 h-4" />
                 My Chats
               </Link>
