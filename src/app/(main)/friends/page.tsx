@@ -137,7 +137,7 @@ export default function FriendsPage() {
       if (res.ok) {
         const data = await res.json()
         loadData()
-        if (data.dmChannelId) router.push(`/chats/${data.dmChannelId}`)
+        if (data.dmChannelId) router.push(`/chats/${data.dmChannelId}?type=messaging`)
       }
     } catch {}
   }
@@ -313,7 +313,7 @@ export default function FriendsPage() {
                   <div className="flex gap-1.5">
                     <motion.button
                       whileTap={{ scale: 0.85 }}
-                      onClick={() => router.push(`/chats/${[clerkId, f.clerkId].sort().join('--')}`)}
+                      onClick={() => router.push(`/chats/${[clerkId, f.clerkId].sort().join('--')}?type=messaging`)}
                       className="p-2 rounded-xl bg-blue-500 text-white"
                     >
                       <MessageCircle className="w-4 h-4" />
