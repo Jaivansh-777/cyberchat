@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getStreamServer } from '@/lib/stream'
+import { getDmChannelId } from '@/lib/dm-channel'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const server = getStreamServer()
-    const channelId = [clerkId, targetUserId].sort().join('--')
+    const channelId = getDmChannelId(clerkId, targetUserId)
     const channel = server.channel('messaging', channelId, {
       members: [clerkId, targetUserId],
       created_by_id: clerkId,

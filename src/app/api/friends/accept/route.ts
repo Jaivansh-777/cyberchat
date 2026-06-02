@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { getStreamServer } from '@/lib/stream'
+import { getDmChannelId } from '@/lib/dm-channel'
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
       skipDuplicates: true,
     })
 
-    const dmId = [request.senderId, request.receiverId].sort().join('--')
+    const dmId = getDmChannelId(request.senderId, request.receiverId)
     try {
       const server = getStreamServer()
       const dm = server.channel('messaging', dmId, {

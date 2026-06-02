@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getStreamServer } from '@/lib/stream'
+import { getDmChannelId } from '@/lib/dm-channel'
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
       const newText = `request:${fromUserId}:${toUserId}:accepted`
       await (ch as any).updateMessage({ id: requestId, text: newText })
 
-      const dmId = [fromUserId, toUserId].sort().join('--')
+      const dmId = getDmChannelId(fromUserId, toUserId)
       const dm = server.channel('messaging', dmId, {
         members: [fromUserId, toUserId],
         created_by_id: fromUserId,

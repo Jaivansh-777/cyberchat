@@ -8,6 +8,7 @@ import {
   Loader2, ArrowRight, Check, X, Clock, MessageCircle, UserX, UserMinus,
 } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+import { getDmChannelId } from '@/lib/dm-channel'
 
 interface IncomingRequest {
   id: string
@@ -313,7 +314,7 @@ export default function FriendsPage() {
                   <div className="flex gap-1.5">
                     <motion.button
                       whileTap={{ scale: 0.85 }}
-                      onClick={() => router.push(`/chats/${[clerkId, f.clerkId].sort().join('--')}?type=messaging`)}
+                      onClick={() => router.push(`/chats/${getDmChannelId(clerkId, f.clerkId)}?type=messaging`)}
                       className="p-2 rounded-xl bg-blue-500 text-white"
                     >
                       <MessageCircle className="w-4 h-4" />
