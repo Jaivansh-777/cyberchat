@@ -1,59 +1,59 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_BASE = '/api'
 
-let _getToken: (() => Promise<string | null>) | null = null;
+let _getToken: (() => Promise<string | null>) | null = null
 
 export function setTokenProvider(provider: () => Promise<string | null>) {
-  _getToken = provider;
+  _getToken = provider
 }
 
 async function getAuthToken(): Promise<string | null> {
-  if (_getToken) return _getToken();
-  return null;
+  if (_getToken) return _getToken()
+  return null
 }
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = await getAuthToken();
+  const token = await getAuthToken()
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
-  };
+  }
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
     credentials: 'include',
-  });
+  })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }))
+    throw new Error(error.message || `HTTP ${response.status}`)
   }
 
-  return response.json();
+  return response.json()
 }
 
 export const api = {
   // Users
-  getMe: () => request<any>('/users/me'),
-  updateProfile: (data: any) => request<any>('/users/profile', { method: 'PUT', body: JSON.stringify(data) }),
-  searchUsers: (query: string) => request<any>(`/users/search?q=${encodeURIComponent(query)}`),
-  getUser: (id: string) => request<any>(`/users/${id}`),
-  getUserByUsername: (username: string) => request<any>(`/users/username/${encodeURIComponent(username)}`),
+  getMe: () => request<any>('/user/me'),
+  updateProfile: (data: any) => request<any>('/user/profile', { method: 'PUT', body: JSON.stringify(data) }),
+  searchUsers: (query: string) => request<any>(`/friends/find-user?cyberId=${encodeURIComponent(query)}`),
+  getUser: (id: string) => request<any>(`/user/${id}`),
+  getUserByUsername: (username: string) => request<any>(`/friends/find-user?cyberId=${encodeURIComponent(username)}`),
 
-  // Chats
+  // Chats (via Stream)
   getChats: () => request<any[]>('/chats'),
   getChat: (id: string) => request<any>(`/chats/${id}`),
-  createPrivateChat: (userId: string) => request<any>('/chats/private', { method: 'POST', body: JSON.stringify({ userId }) }),
+  createPrivateChat: (userId: string) => request<any>('/stream/create-dm', { method: 'POST', body: JSON.stringify({ targetUserId: userId }) }),
 
-  // Messages
+  // Messages (via Stream)
   getMessages: (chatId: string, cursor?: string) =>
     request<any[]>(`/messages/chat/${chatId}${cursor ? `?cursor=${cursor}` : ''}`),
   sendMessage: (data: any) => request<any>('/messages', { method: 'POST', body: JSON.stringify(data) }),
@@ -72,80 +72,85 @@ export const api = {
   markAsRead: (chatId: string) => request<any>(`/messages/read/${chatId}`, { method: 'POST' }),
 
   // Groups
-  getGroups: () => request<any[]>('/groups'),
-  getGroup: (id: string) => request<any>(`/groups/${id}`),
-  createGroup: (data: any) => request<any>('/groups', { method: 'POST', body: JSON.stringify(data) }),
+  getGroups: () => request<any[]>('/groups/my-groups'),
+  getGroup: (id: string) => request<any>(`/groups/info?groupId=${encodeURIComponent(id)}`),
+  createGroup: (data: any) => request<any>('/groups/create', { method: 'POST', body: JSON.stringify(data) }),
   updateGroup: (id: string, data: any) => request<any>(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   addGroupMember: (groupId: string, userId: string) =>
-    request<any>(`/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
+    request<any>('/groups/add-member', { method: 'POST', body: JSON.stringify({ groupId, memberClerkId: userId }) }),
   removeGroupMember: (groupId: string, userId: string) =>
-    request<any>(`/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
+    request<any>('/groups/remove-member', { method: 'POST', body: JSON.stringify({ groupId, memberClerkId: userId }) }),
   updateMemberRole: (groupId: string, userId: string, role: string) =>
     request<any>(`/groups/${groupId}/members/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   transferOwnership: (groupId: string, newOwnerId: string) =>
     request<any>(`/groups/${groupId}/transfer`, { method: 'POST', body: JSON.stringify({ newOwnerId }) }),
 
   // Calls
-  getCallToken: () => request<{ token: string; apiKey: string }>('/calls/token'),
-  initiateCall: (data: any) => request<any>('/calls/initiate', { method: 'POST', body: JSON.stringify(data) }),
+  getCallToken: () => request<{ token: string; apiKey: string }>('/stream/token', { method: 'POST' }),
+  initiateCall: (data: any) => request<any>('/calls/log', { method: 'POST', body: JSON.stringify(data) }),
   updateCallStatus: (id: string, data: any) => request<any>(`/calls/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
   getCallHistory: () => request<any[]>('/calls/history'),
 
-  // Media
+  // Media / Storage
   uploadFile: async (file: File) => {
-    const token = await getAuthToken();
-    const formData = new FormData();
-    formData.append('file', file);
+    const token = await getAuthToken()
+    const formData = new FormData()
+    formData.append('file', file)
 
-    const response = await fetch(`${API_BASE}/media/upload`, {
+    const response = await fetch(`${API_BASE}/storage/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
-    });
+    })
 
-    if (!response.ok) throw new Error('Upload failed');
-    return response.json();
+    if (!response.ok) throw new Error('Upload failed')
+    return response.json()
   },
 
   // Friends
-  getFriends: () => request<any[]>('/friends'),
-  sendFriendRequest: (receiverId: string) => request<any>('/friends/request', { method: 'POST', body: JSON.stringify({ receiverId }) }),
-  acceptFriendRequest: (requestId: string) => request<any>(`/friends/accept/${requestId}`, { method: 'POST' }),
-  rejectFriendRequest: (requestId: string) => request<any>(`/friends/reject/${requestId}`, { method: 'POST' }),
-  cancelFriendRequest: (requestId: string) => request<any>(`/friends/cancel/${requestId}`, { method: 'POST' }),
-  removeFriend: (friendId: string) => request<any>(`/friends/${friendId}`, { method: 'DELETE' }),
-  getIncomingFriendRequests: () => request<any[]>('/friends/requests/incoming'),
-  getSentFriendRequests: () => request<any[]>('/friends/requests/sent'),
+  getFriends: () => request<any[]>('/friends/list'),
+  sendFriendRequest: (receiverId: string) =>
+    request<any>('/friends/send', { method: 'POST', body: JSON.stringify({ toCyberId: receiverId }) }),
+  acceptFriendRequest: (requestId: string) =>
+    request<any>('/friends/accept', { method: 'POST', body: JSON.stringify({ requestId }) }),
+  rejectFriendRequest: (requestId: string) =>
+    request<any>('/friends/decline', { method: 'POST', body: JSON.stringify({ requestId }) }),
+  cancelFriendRequest: (requestId: string) =>
+    request<any>('/friends/cancel', { method: 'POST', body: JSON.stringify({ toCyberId: requestId }) }),
+  removeFriend: (friendId: string) =>
+    request<any>('/friends/remove', { method: 'POST', body: JSON.stringify({ friendClerkId: friendId }) }),
+  getIncomingFriendRequests: () => request<any[]>('/friends/incoming'),
+  getSentFriendRequests: () => request<any[]>('/friends/outgoing'),
   getMutualFriends: (userId: string) => request<any>(`/friends/mutual/${userId}`),
 
   // Avatar Upload
   uploadAvatar: async (file: File) => {
-    const token = await getAuthToken();
-    const formData = new FormData();
-    formData.append('file', file);
+    const token = await getAuthToken()
+    const formData = new FormData()
+    formData.append('avatar', file)
 
-    const response = await fetch(`${API_BASE}/media/upload`, {
+    const response = await fetch(`${API_BASE}/user/avatar`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
-    });
+    })
 
-    if (!response.ok) throw new Error('Upload failed');
-    const data = await response.json();
-    return data.url || data;
+    if (!response.ok) throw new Error('Upload failed')
+    const data = await response.json()
+    return data.avatarUrl || data
   },
 
-  // Status
-  createStatus: (data: any) => request<any>('/status/create', { method: 'POST', body: JSON.stringify(data) }),
-  getStatusFeed: () => request<any[]>('/status/feed'),
-  getMyStatuses: () => request<any[]>('/status/my'),
+  // Status (via Stream)
+  createStatus: (data: any) => request<any>('/stream/status/post', { method: 'POST', body: JSON.stringify(data) }),
+  getStatusFeed: () => request<any[]>('/stream/status/list', { method: 'POST' }),
+  getMyStatuses: () => request<any[]>('/stream/status/list', { method: 'POST' }),
   viewStatus: (statusId: string) => request<any>(`/status/view/${statusId}`, { method: 'POST' }),
   deleteStatus: (statusId: string) => request<any>(`/status/${statusId}`, { method: 'DELETE' }),
 
   // Global Search
-  globalSearch: (query: string) => request<any>(`/search?q=${encodeURIComponent(query)}`),
+  globalSearch: (query: string) => request<any>(`/chats/search?q=${encodeURIComponent(query)}`),
   globalSearchUsers: (query: string) => request<any>(`/search/users?q=${encodeURIComponent(query)}`),
   globalSearchMessages: (query: string) => request<any>(`/search/messages?q=${encodeURIComponent(query)}`),
   globalSearchGroups: (query: string) => request<any>(`/search/groups?q=${encodeURIComponent(query)}`),
   globalSearchMedia: (chatId: string, type?: string) => request<any>(`/search/media?chatId=${chatId}${type ? `&type=${type}` : ''}`),
-};
+}

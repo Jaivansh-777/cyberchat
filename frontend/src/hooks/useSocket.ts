@@ -7,7 +7,7 @@ import { useUIStore } from '@/store/ui-store';
 import { useSession } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_APP_URL || '';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
