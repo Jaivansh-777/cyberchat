@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f8f9fa;
+    --color-bg-tertiary: #f1f3f5;
+    --color-text-primary: #212529;
+    --color-text-secondary: #495057;
+    --color-text-muted: #868e96;
+    --color-border: #dee2e6;
+    --color-accent: #5c7cfa;
+    --color-accent-hover: #4c6ef5;
+    --color-glass: rgba(255, 255, 255, 0.7);
+    --color-glass-border: rgba(255, 255, 255, 0.3);
+    --color-success: #40c057;
+    --color-warning: #fab005;
+    --color-danger: #fa5252;
+    --color-online: #40c057;
+  }
+
+  .dark {
+    --color-bg-primary: #1a1b1e;
+    --color-bg-secondary: #25262b;
+    --color-bg-tertiary: #2c2e33;
+    --color-text-primary: #c1c2c5;
+    --color-text-secondary: #909296;
+    --color-text-muted: #5c5f66;
+    --color-border: #373a40;
+    --color-glass: rgba(37, 38, 43, 0.7);
+    --color-glass-border: rgba(55, 58, 64, 0.3);
+  }
+}
+
+@layer components {
+  .glass {
+    background: var(--color-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-glass-border);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+
+  .dark .glass-strong {
+    background: rgba(37, 38, 43, 0.85);
+    border: 1px solid rgba(55, 58, 64, 0.4);
+  }
+
+  .message-bubble {
+    @apply relative max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm;
+  }
+
+  .message-bubble.sent {
+    @apply bg-cyber-500 text-white rounded-br-md;
+  }
+
+  .message-bubble.received {
+    @apply bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-100 rounded-bl-md;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-item:hover {
+    @apply bg-surface-100 dark:bg-surface-800;
+  }
+
+  .sidebar-item.active {
+    @apply bg-cyber-50 dark:bg-cyber-900/30 text-cyber-700 dark:text-cyber-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-600 
+           bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100
+           placeholder:text-surface-400 dark:placeholder:text-surface-500
+           focus:outline-none focus:ring-2 focus:ring-cyber-500/30 focus:border-cyber-500
+           transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 bg-cyber-500 hover:bg-cyber-600 text-white rounded-xl font-medium
+           transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+           shadow-sm hover:shadow-md;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 
+           rounded-xl transition-all duration-200;
+  }
+
+  .skeleton {
+    @apply bg-surface-200 dark:bg-surface-700 rounded-lg animate-pulse;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 20px;
+  }
+
+  .typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .typing-indicator span {
+    width: 6px;
+    height: 6px;
+    background: var(--color-text-muted);
+    border-radius: 50%;
+    animation: typingBounce 1.4s infinite;
+  }
+
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 20px;
+}

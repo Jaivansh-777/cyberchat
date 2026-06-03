@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  VOICE_NOTE
+  DOCUMENT
+  PDF
+  ZIP
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum CallType {
+  VOICE
+  VIDEO
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  CONNECTED
+  COMPLETED
+  MISSED
+  REJECTED
+  CANCELLED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+model User {
+  id           String     @id @default(uuid()) @map("id")
+  clerkId      String     @unique
+  username     String     @unique
+  email        String     @unique
+  displayName  String     @map("display_name")
+  bio          String?
+  avatar       String?
+  publicKey    String?    @map("public_key")
+  lastSeen     DateTime?  @map("last_seen")
+  isOnline     Boolean    @default(false) @map("is_online")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  sentMessages      Message[]
+  chatMemberships   ChatMember[]
+  groupMemberships  GroupMember[]
+  ownedGroups       Group[]
+  callLogsAsCaller  CallLog[]     @relation("CallerLogs")
+  callLogsAsReceiver CallLog[]    @relation("ReceiverLogs")
+  pinnedMessages    PinnedMessage[]
+  reactions         MessageReaction[]
+  deviceSessions    DeviceSession[]
+  friends          Friend[]       @relation("UserFriends")
+  friendOf         Friend[]       @relation("FriendOf")
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+
+  @@map("users")
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  type      ChatType
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages       Message[]
+  members        ChatMember[]
+  pinnedMessages PinnedMessage[]
+
+  @@map("chats")
+}
+
+model ChatMember {
+  id     String @id @default(uuid())
+  chatId String @map("chat_id")
+  userId String @map("user_id")
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@map("chat_members")
+}
+
+model Message {
+  id               String         @id @default(uuid())
+  chatId           String         @map("chat_id")
+  senderId         String         @map("sender_id")
+  encryptedContent String?        @map("encrypted_content")
+  mediaUrl         String?        @map("media_url")
+  mediaType        String?        @map("media_type")
+  messageType      MessageType    @default(TEXT) @map("message_type")
+  status           MessageStatus  @default(SENT)
+  replyToId        String?        @map("reply_to_id")
+  editedAt         DateTime?      @map("edited_at")
+  isDeleted        Boolean        @default(false) @map("is_deleted")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  chat      Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    User              @relation(fields: [senderId], references: [id])
+  replyTo   Message?          @relation("RepliedMessages", fields: [replyToId], references: [id])
+  replies   Message[]         @relation("RepliedMessages")
+  pinnedBy  PinnedMessage[]
+  reactions MessageReaction[]
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model PinnedMessage {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  messageId String   @map("message_id")
+  pinnedBy  String   @map("pinned_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat    Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [pinnedBy], references: [id])
+
+  @@unique([chatId, messageId])
+  @@map("pinned_messages")
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+model Group {
+  id          String @id @default(uuid())
+  name        String
+  description String?
+  icon        String?
+  ownerId     String @map("owner_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  owner   User          @relation(fields: [ownerId], references: [id])
+  members GroupMember[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id      String     @id @default(uuid())
+  groupId String     @map("group_id")
+  userId  String     @map("user_id")
+  role    MemberRole @default(MEMBER)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model CallLog {
+  id         String     @id @default(uuid())
+  callerId   String     @map("caller_id")
+  receiverId String     @map("receiver_id")
+  type       CallType
+  duration   Int?
+  status     CallStatus
+  streamCallId String?  @map("stream_call_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  caller   User @relation("CallerLogs", fields: [callerId], references: [id])
+  receiver User @relation("ReceiverLogs", fields: [receiverId], references: [id])
+
+  @@index([callerId])
+  @@index([receiverId])
+  @@map("call_logs")
+}
+
+model Friend {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("friends")
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model DeviceSession {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  deviceName   String   @map("device_name")
+  deviceType   String   @map("device_type")
+  refreshToken String   @map("refresh_token")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?
+  isActive     Boolean  @default(true) @map("is_active")
+  lastActiveAt DateTime @default(now()) @map("last_active_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_sessions")
+}
