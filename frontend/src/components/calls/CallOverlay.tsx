@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Phone, PhoneOff, PhoneIncoming, Mic, MicOff,
-  Volume2, VolumeX, Maximize2, Minimize2, X, Clock
+  Phone, PhoneOff, Mic, MicOff,
+  Volume2, VolumeX, Maximize2, Minimize2, Clock
 } from 'lucide-react';
 import { useUIStore } from '@/store/ui-store';
-import { useChatStore } from '@/store/chat-store';
 import { useUser } from '@clerk/nextjs';
 import { cn, getInitials, generateAvatarColor, formatDuration } from '@/lib/utils';
 import { useSocket } from '@/hooks/useSocket';
+import { useStreamCall } from './StreamCallProvider';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,8 @@ const CALL_TIMEOUT = 30000;
 export function CallOverlay() {
   const { user } = useUser();
   const { callInProgress, callData, setCallInProgress } = useUIStore();
-  const { sendCallSignal, acceptCall, endCall } = useSocket();
+  const { sendCallSignal, acceptCall: acceptCallSocket, endCall: endCallSocket } = useSocket();
+  const { startLocalStream, stopLocalStream, mute, localStream } = useStreamCall();
 
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -33,11 +34,10 @@ export function CallOverlay() {
   const isIncoming = callData?.isIncoming;
   const isOutgoing = callData?.isOutgoing;
   const isActive = callData?.isActive;
-  const callType = callData?.callType || 'VOICE';
   const callerName = callData?.callerName || callData?.callerDisplayName || 'Unknown';
   const callerAvatar = callData?.callerAvatar;
   const targetUserId = callData?.targetUserId;
-  const callId = callData?.callId;
+  const callId = callData?.callId || callData?.streamCallId;
 
   useEffect(() => {
     if (isOutgoing && callInProgress) {
@@ -60,7 +60,7 @@ export function CallOverlay() {
         gainNode.connect(audioCtx.destination);
         oscillator.frequency.value = 440;
         oscillator.type = 'sine';
-        gainNode.gain.value = 0.1;
+        gainNode.gain.value = 0.08;
         oscillator.start();
 
         const stopRinging = setTimeout(() => {
@@ -80,11 +80,13 @@ export function CallOverlay() {
 
   useEffect(() => {
     if (isActive && callInProgress) {
+      startLocalStream();
       durationInterval.current = setInterval(() => {
         setCallDuration((prev) => prev + 1);
       }, 1000);
     }
     return () => {
+      stopLocalStream();
       if (durationInterval.current) clearInterval(durationInterval.current);
     };
   }, [isActive, callInProgress]);
@@ -105,7 +107,6 @@ export function CallOverlay() {
 
       api.initiateCall({ receiverId: targetId, type }).then((callLog) => {
         const data = {
-          callData: callLog,
           isOutgoing: true,
           isIncoming: false,
           isActive: false,
@@ -114,6 +115,7 @@ export function CallOverlay() {
           callerName: displayName,
           callerAvatar: avatar,
           callId: callLog.id,
+          streamCallId: callLog.streamCallId || callLog.id,
           startTime: Date.now(),
         };
         setCallInProgress(true, data);
@@ -122,6 +124,7 @@ export function CallOverlay() {
           targetUserId: targetId,
           callType: type,
           callId: callLog.id,
+          streamCallId: callLog.streamCallId || callLog.id,
           callerName: user?.fullName || user?.username,
           callerAvatar: user?.imageUrl,
         });
@@ -139,17 +142,18 @@ export function CallOverlay() {
     ringingAudioRef.current?.stop?.();
     if (callId) {
       api.updateCallStatus(callId, { status: 'MISSED' }).catch(() => {});
-      endCall({ targetUserId, callId });
+      endCallSocket({ targetUserId, callId });
     }
     setCallInProgress(false, null);
     toast.error('Call timed out');
-  }, [callId, targetUserId, endCall, setCallInProgress]);
+  }, [callId, targetUserId, endCallSocket, setCallInProgress]);
 
   const handleAcceptCall = useCallback(async () => {
     if (callId) {
       await api.updateCallStatus(callId, { status: 'CONNECTED' }).catch(() => {});
     }
     ringingAudioRef.current?.stop?.();
+    await startLocalStream();
 
     setCallInProgress(true, {
       ...callData,
@@ -159,14 +163,15 @@ export function CallOverlay() {
       startTime: Date.now(),
     });
 
-    acceptCall({
+    acceptCallSocket({
       targetUserId: callData?.callerId,
       callId,
     });
-  }, [callData, callId, setCallInProgress, acceptCall]);
+  }, [callData, callId, setCallInProgress, acceptCallSocket, startLocalStream]);
 
-  const handleEndCall = useCallback(() => {
+  const handleEndCall = useCallback(async () => {
     ringingAudioRef.current?.stop?.();
+    stopLocalStream();
 
     if (callId) {
       const duration = Math.floor((Date.now() - (callData?.startTime || Date.now())) / 1000);
@@ -174,7 +179,7 @@ export function CallOverlay() {
     }
 
     if (callData?.callerId || targetUserId) {
-      endCall({
+      endCallSocket({
         targetUserId: callData?.callerId || targetUserId,
         callId,
       });
@@ -184,16 +189,22 @@ export function CallOverlay() {
     setCallDuration(0);
     setIsMuted(false);
     setIsSpeaker(false);
-  }, [callData, callId, targetUserId, endCall, setCallInProgress]);
+  }, [callData, callId, targetUserId, endCallSocket, setCallInProgress, stopLocalStream]);
 
   const handleRejectCall = useCallback(async () => {
     ringingAudioRef.current?.stop?.();
     if (callId) {
       await api.updateCallStatus(callId, { status: 'REJECTED' }).catch(() => {});
     }
-    endCall({ targetUserId: callData?.callerId, callId });
+    endCallSocket({ targetUserId: callData?.callerId, callId });
     setCallInProgress(false, null);
-  }, [callData, callId, endCall, setCallInProgress]);
+  }, [callData, callId, endCallSocket, setCallInProgress]);
+
+  const toggleMute = () => {
+    const next = !isMuted;
+    setIsMuted(next);
+    mute(next);
+  };
 
   if (!callInProgress) return null;
 
@@ -285,7 +296,7 @@ export function CallOverlay() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-center gap-6">
                     <button
-                      onClick={() => setIsMuted(!isMuted)}
+                      onClick={toggleMute}
                       className={cn(
                         'w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95',
                         isMuted

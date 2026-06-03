@@ -182,7 +182,10 @@ export class GatewayService implements OnGatewayConnection, OnGatewayDisconnect 
       fromUserId: dbUserId,
       callerDisplayName: data.callerName,
       callerAvatar: data.callerAvatar,
-      ...data,
+      streamCallId: data.streamCallId,
+      callId: data.callId,
+      callType: data.callType,
+      callerName: data.callerName,
     });
   }
 

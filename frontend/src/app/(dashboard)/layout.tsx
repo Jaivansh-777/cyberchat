@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CallOverlay } from '@/components/calls/CallOverlay';
+import { StreamCallProvider } from '@/components/calls/StreamCallProvider';
 import { useUIStore } from '@/store/ui-store';
 import { useSocket } from '@/hooks/useSocket';
 import { api } from '@/lib/api';
@@ -50,7 +51,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       <main className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'md:ml-72' : 'ml-0'}`}>
         {children}
       </main>
-      <CallOverlay />
+      <StreamCallProvider>
+        <CallOverlay />
+      </StreamCallProvider>
     </div>
   );
 }

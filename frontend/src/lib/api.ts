@@ -135,6 +135,13 @@ export const api = {
     return data.url || data;
   },
 
+  // Status
+  createStatus: (data: any) => request<any>('/status/create', { method: 'POST', body: JSON.stringify(data) }),
+  getStatusFeed: () => request<any[]>('/status/feed'),
+  getMyStatuses: () => request<any[]>('/status/my'),
+  viewStatus: (statusId: string) => request<any>(`/status/view/${statusId}`, { method: 'POST' }),
+  deleteStatus: (statusId: string) => request<any>(`/status/${statusId}`, { method: 'DELETE' }),
+
   // Global Search
   globalSearch: (query: string) => request<any>(`/search?q=${encodeURIComponent(query)}`),
   globalSearchUsers: (query: string) => request<any>(`/search/users?q=${encodeURIComponent(query)}`),

@@ -76,6 +76,8 @@ model User {
   pinnedMessages    PinnedMessage[]
   reactions         MessageReaction[]
   deviceSessions    DeviceSession[]
+  statuses         Status[]
+  statusViews      StatusView[]
   friends          Friend[]       @relation("UserFriends")
   friendOf         Friend[]       @relation("FriendOf")
   sentRequests     FriendRequest[] @relation("SentRequests")
@@ -236,6 +238,44 @@ model FriendRequest {
 
   @@unique([senderId, receiverId])
   @@map("friend_requests")
+}
+
+enum StatusType {
+  TEXT
+  IMAGE
+  VIDEO
+  VOICE
+}
+
+model Status {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  type        StatusType @default(TEXT)
+  text        String?
+  mediaUrl    String?    @map("media_url")
+  driveFileId String?    @map("drive_file_id")
+  expiresAt   DateTime   @map("expires_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views  StatusView[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("statuses")
+}
+
+model StatusView {
+  id        String   @id @default(uuid())
+  statusId  String   @map("status_id")
+  viewerId  String   @map("viewer_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  status Status @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  viewer User   @relation(fields: [viewerId], references: [id])
+
+  @@unique([statusId, viewerId])
+  @@map("status_views")
 }
 
 model DeviceSession {

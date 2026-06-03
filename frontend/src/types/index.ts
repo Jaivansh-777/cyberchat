@@ -165,3 +165,26 @@ export interface Sticker {
   pack: string;
   category: string;
 }
+
+export interface StatusItem {
+  id: string;
+  userId: string;
+  user: Partial<User>;
+  type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'VOICE';
+  text?: string;
+  mediaUrl?: string;
+  driveFileId?: string;
+  expiresAt: string;
+  createdAt: string;
+  viewedByCurrentUser?: boolean;
+  viewCount?: number;
+  views?: StatusView[];
+}
+
+export interface StatusView {
+  id: string;
+  statusId: string;
+  viewerId: string;
+  viewer: Partial<User>;
+  viewedAt: string;
+}

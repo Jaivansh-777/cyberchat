@@ -7,9 +7,13 @@ import { Search, Plus, MessageCircle } from 'lucide-react';
 import { ChatList } from '@/components/chat/ChatList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { NewChatModal } from '@/components/chat/NewChatModal';
+import { StatusRow } from '@/components/status/StatusRow';
+import { StatusCreateModal } from '@/components/status/StatusCreateModal';
+import { StatusViewer } from '@/components/status/StatusViewer';
 import { useChatStore } from '@/store/chat-store';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { StatusItem } from '@/types';
 
 export default function ChatsPage() {
   const { user } = useUser();
@@ -17,9 +21,15 @@ export default function ChatsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [myStatuses, setMyStatuses] = useState<StatusItem[]>([]);
+  const [friendsStatuses, setFriendsStatuses] = useState<StatusItem[]>([]);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     loadChats();
+    loadStatuses();
   }, []);
 
   const loadChats = async () => {
@@ -33,6 +43,21 @@ export default function ChatsPage() {
     }
   };
 
+  const loadStatuses = async () => {
+    try {
+      const [my, feed] = await Promise.all([
+        api.getMyStatuses(),
+        api.getStatusFeed(),
+      ]);
+      setMyStatuses(my);
+      setFriendsStatuses(feed.filter((s: StatusItem) => s.userId !== user?.id));
+    } catch (err) {
+      console.error('Failed to load statuses:', err);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
   const filteredChats = chats.filter((chat) => {
     if (!searchQuery) return true;
     const otherMember = chat.members.find((m) => m.userId !== user?.id);
@@ -42,6 +67,8 @@ export default function ChatsPage() {
       otherMember.user.username.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
+
+  const allViewableStatuses: StatusItem[] = [...(myStatuses[0] ? [myStatuses[0]] : []), ...friendsStatuses];
 
   return (
     <div className="flex h-full">
@@ -67,6 +94,17 @@ export default function ChatsPage() {
             />
           </div>
         </div>
+
+        <StatusRow
+          myStatuses={myStatuses}
+          friendsStatuses={friendsStatuses}
+          onCreateClick={() => setShowCreate(true)}
+          onStatusClick={(status) => {
+            const idx = allViewableStatuses.findIndex((s) => s.id === status.id);
+            if (idx >= 0) setViewerIndex(idx);
+          }}
+          loading={statusLoading}
+        />
 
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           {loading ? (
@@ -112,6 +150,22 @@ export default function ChatsPage() {
       <AnimatePresence>
         {showNewChat && (
           <NewChatModal onClose={() => setShowNewChat(false)} onSelect={(chat) => { setActiveChat(chat); setShowNewChat(false); }} />
+        )}
+      </AnimatePresence>
+
+      <StatusCreateModal isOpen={showCreate} onClose={() => { setShowCreate(false); loadStatuses(); }} />
+
+      <AnimatePresence>
+        {viewerIndex !== null && (
+          <StatusViewer
+            statuses={allViewableStatuses}
+            initialIndex={viewerIndex}
+            onClose={() => setViewerIndex(null)}
+            onDelete={(id) => {
+              setMyStatuses((prev) => prev.filter((s) => s.id !== id));
+              loadStatuses();
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

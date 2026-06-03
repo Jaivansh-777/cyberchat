@@ -15,6 +15,7 @@ import { SearchModule } from './search/search.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { FriendsModule } from './friends/friends.module';
+import { StatusModule } from './status/status.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { FriendsModule } from './friends/friends.module';
     NotificationsModule,
     GatewayModule,
     FriendsModule,
+    StatusModule,
   ],
   providers: [
     {
