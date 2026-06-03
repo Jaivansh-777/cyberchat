@@ -20,7 +20,7 @@ export function CallOverlay() {
   const { user } = useUser();
   const { callInProgress, callData, setCallInProgress } = useUIStore();
   const { sendCallSignal, acceptCall: acceptCallSocket, endCall: endCallSocket } = useSocket();
-  const { startLocalStream, stopLocalStream, mute, localStream } = useStreamCall();
+  const { startLocalStream, stopLocalStream, mute } = useStreamCall();
 
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -30,6 +30,7 @@ export function CallOverlay() {
   const durationInterval = useRef<NodeJS.Timeout>(undefined);
   const timeoutInterval = useRef<NodeJS.Timeout>(undefined);
   const ringingAudioRef = useRef<{ stop: () => void } | null>(null);
+  const handleTimeoutRef = useRef<() => void>(() => {});
 
   const isIncoming = callData?.isIncoming;
   const isOutgoing = callData?.isOutgoing;
@@ -39,13 +40,27 @@ export function CallOverlay() {
   const targetUserId = callData?.targetUserId;
   const callId = callData?.callId || callData?.streamCallId;
 
+  const handleTimeout = useCallback(() => {
+    ringingAudioRef.current?.stop?.();
+    if (callId) {
+      api.updateCallStatus(callId, { status: 'MISSED' }).catch(() => {});
+      endCallSocket({ targetUserId, callId });
+    }
+    setCallInProgress(false, null);
+    toast.error('Call timed out');
+  }, [callId, targetUserId, endCallSocket, setCallInProgress]);
+
+  useEffect(() => {
+    handleTimeoutRef.current = handleTimeout;
+  }, [handleTimeout]);
+
   useEffect(() => {
     if (isOutgoing && callInProgress) {
       timeoutInterval.current = setInterval(() => {
         setTimeoutProgress((prev) => {
           const next = prev - (100 / (CALL_TIMEOUT / 100));
           if (next <= 0) {
-            handleTimeout();
+            handleTimeoutRef.current();
             return 0;
           }
           return next;
@@ -92,7 +107,7 @@ export function CallOverlay() {
   }, [isActive, callInProgress]);
 
   useEffect(() => {
-    const handleStartCall = (e: any) => {
+    const handleStartCall = (e: CustomEvent) => {
       const { userId: targetId, type, displayName, avatar } = e.detail;
       setCallInProgress(true, {
         isIncoming: false,
@@ -134,19 +149,9 @@ export function CallOverlay() {
       });
     };
 
-    window.addEventListener('startCall', handleStartCall);
-    return () => window.removeEventListener('startCall', handleStartCall);
+    window.addEventListener('startCall', handleStartCall as EventListener);
+    return () => window.removeEventListener('startCall', handleStartCall as EventListener);
   }, [sendCallSignal, setCallInProgress, user]);
-
-  const handleTimeout = useCallback(() => {
-    ringingAudioRef.current?.stop?.();
-    if (callId) {
-      api.updateCallStatus(callId, { status: 'MISSED' }).catch(() => {});
-      endCallSocket({ targetUserId, callId });
-    }
-    setCallInProgress(false, null);
-    toast.error('Call timed out');
-  }, [callId, targetUserId, endCallSocket, setCallInProgress]);
 
   const handleAcceptCall = useCallback(async () => {
     if (callId) {

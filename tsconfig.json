@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./frontend/src/*", "./src/*"]
     }
   },
   "include": [
@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "android", "out", "scripts"]
+  "exclude": ["node_modules", "frontend/node_modules", "backend/node_modules", "backend", "android", "out", "scripts"]
 }

@@ -29,10 +29,19 @@ export function StatusViewer({ statuses, initialIndex, onClose, onDelete }: Stat
   const current = statuses[currentIndex];
   const isOwn = current?.userId === user?.id;
 
-  const advanceProgress = useCallback(() => {
-    progressRef.current += 1;
-    setProgress(progressRef.current);
-  }, []);
+  const goNext = useCallback(() => {
+    if (currentIndex < statuses.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else {
+      onClose();
+    }
+  }, [currentIndex, statuses.length, onClose]);
+
+  const goPrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex((i) => i - 1);
+    }
+  }, [currentIndex]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -51,21 +60,7 @@ export function StatusViewer({ statuses, initialIndex, onClose, onDelete }: Stat
         goNext();
       }
     }, 50);
-  }, [current]);
-
-  const goNext = useCallback(() => {
-    if (currentIndex < statuses.length - 1) {
-      setCurrentIndex((i) => i + 1);
-    } else {
-      onClose();
-    }
-  }, [currentIndex, statuses.length, onClose]);
-
-  const goPrev = useCallback(() => {
-    if (currentIndex > 0) {
-      setCurrentIndex((i) => i - 1);
-    }
-  }, [currentIndex]);
+  }, [current, goNext]);
 
   const recordView = useCallback(async (status: StatusItem) => {
     try {

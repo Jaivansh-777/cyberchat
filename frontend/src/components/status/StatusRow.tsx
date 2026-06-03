@@ -2,10 +2,10 @@
 
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Circle } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { StatusItem } from '@/types';
 import { useUser } from '@clerk/nextjs';
-import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
+import { getInitials, generateAvatarColor } from '@/lib/utils';
 
 interface StatusRowProps {
   myStatuses: StatusItem[];

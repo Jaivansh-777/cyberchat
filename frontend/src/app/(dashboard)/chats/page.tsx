@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Search, Plus, MessageCircle } from 'lucide-react';
 import { ChatList } from '@/components/chat/ChatList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
@@ -26,11 +26,6 @@ export default function ChatsPage() {
   const [statusLoading, setStatusLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    loadChats();
-    loadStatuses();
-  }, []);
 
   const loadChats = async () => {
     try {
@@ -57,6 +52,11 @@ export default function ChatsPage() {
       setStatusLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadChats();
+    loadStatuses();
+  }, []);
 
   const filteredChats = chats.filter((chat) => {
     if (!searchQuery) return true;

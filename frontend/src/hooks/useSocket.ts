@@ -175,7 +175,7 @@ export function useSocket() {
   }, []);
 
   return {
-    socket: socketRef.current,
+    getSocket: () => socketRef.current,
     joinChat,
     leaveChat,
     sendMessage,
