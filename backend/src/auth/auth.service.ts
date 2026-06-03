@@ -57,7 +57,7 @@ export class AuthService {
 
     await this.usersService.createUser({
       clerkId: data.id,
-      username: `@${username}`,
+      username,
       email: data.email_addresses[0]?.email_address,
       displayName,
       avatar: data.image_url,
@@ -70,7 +70,7 @@ export class AuthService {
     await this.prisma.user.update({
       where: { clerkId: data.id },
       data: {
-        username: `@${username}`,
+        username,
         displayName: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
         avatar: data.image_url,
       },

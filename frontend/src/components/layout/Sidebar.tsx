@@ -28,8 +28,8 @@ export function Sidebar() {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const avatarUrl = profile?.avatar || user?.imageUrl;
-  const displayName = profile?.displayName || user?.fullName || user?.username || '';
-  const username = profile?.username || user?.username || '';
+  const username = profile?.username || user?.username || user?.fullName?.toLowerCase().replace(/\s+/g, '') || '';
+  const displayName = profile?.displayName || user?.fullName || username || '';
   const userBio = profile?.bio;
 
   return (

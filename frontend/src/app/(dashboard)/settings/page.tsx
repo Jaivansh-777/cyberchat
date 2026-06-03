@@ -48,6 +48,20 @@ export default function SettingsPage() {
       if (user) {
         setDisplayName(user.fullName || '');
         setBio('Hey there! I am using CyberChat');
+        const fallbackUsername = user.username || user.fullName?.toLowerCase().replace(/\s+/g, '') || user.primaryEmailAddress?.emailAddress?.split('@')[0] || '';
+        setProfile({
+          id: user.id,
+          clerkId: user.id,
+          username: fallbackUsername,
+          displayName: user.fullName || '',
+          email: user.primaryEmailAddress?.emailAddress || '',
+          avatar: user.imageUrl || '',
+          bio: 'Hey there! I am using CyberChat',
+          isOnline: true,
+          lastSeen: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       }
     }
   };
@@ -89,14 +103,14 @@ export default function SettingsPage() {
   };
 
   const handleCopyUsername = () => {
-    const username = profile?.username || user?.username || '';
-    navigator.clipboard.writeText(`@${username}`);
+    const uname = profile?.username || user?.username || user?.fullName?.toLowerCase().replace(/\s+/g, '') || 'user';
+    navigator.clipboard.writeText(`@${uname}`);
     toast.success('Username copied');
   };
 
   const avatarUrl = avatar || user?.imageUrl;
   const displayNameValue = profile?.displayName || displayName || user?.fullName || '';
-  const usernameValue = profile?.username || user?.username || '';
+  const usernameValue = profile?.username || user?.username || user?.fullName?.toLowerCase().replace(/\s+/g, '') || 'user';
 
   return (
     <div className="flex h-full">
