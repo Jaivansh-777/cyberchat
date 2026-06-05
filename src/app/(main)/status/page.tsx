@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { sanitizeDisplayName } from '@/lib/display-name'
 import { Circle, Plus, Camera, Image as ImageIcon, X } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 
@@ -60,12 +61,12 @@ function StatusViewer({ statuses, initialIndex, onClose }: {
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white overflow-hidden">
-          {current.userName ? <span>{(current.userName || '?')[0].toUpperCase()}</span> : '?'}
+          <span>{(sanitizeDisplayName(current.userName) || '?')[0].toUpperCase()}</span>
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-white">{current.userName}</p>
+          <p className="text-sm font-semibold text-white">{sanitizeDisplayName(current.userName)}</p>
           <p className="text-[10px] text-white/60">{formatTimeAgo(current.timestamp)}</p>
         </div>
         <button onClick={(e) => { e.stopPropagation(); onClose() }} className="p-1"><X className="w-6 h-6 text-white" /></button>
@@ -181,7 +182,7 @@ export default function StatusPage() {
   const allViewable = [...myStatuses, ...otherStatuses]
 
   return (
-    <div className="h-full bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 flex flex-col pb-16 md:pb-0">
+    <div className="h-full bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 flex flex-col">
       <div className="px-5 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
@@ -198,7 +199,7 @@ export default function StatusPage() {
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
                 <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xl font-bold text-white ${hasMyStatus ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`}>
-                  {mounted ? (userName || '?')[0].toUpperCase() : '?'}
+                  {mounted ? sanitizeDisplayName(userName).charAt(0).toUpperCase() : '?'}
                 </div>
                 <button onClick={() => setShowPost(true)}
                   className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-accent border-2 border-white flex items-center justify-center">
@@ -206,7 +207,7 @@ export default function StatusPage() {
                 </button>
               </div>
               <div className="flex-1 min-w-0" onClick={() => { if (myStatuses.length > 0) setViewingIndex(0) }}>
-                <p className="text-sm font-semibold text-gray-900">{mounted ? userName : 'Loading...'}</p>
+                <p className="text-sm font-semibold text-gray-900">{mounted ? sanitizeDisplayName(userName) : 'Loading...'}</p>
                 <p className="text-xs text-gray-400">
                   {hasMyStatus ? `Posted ${formatTimeAgo(myStatuses[myStatuses.length - 1].timestamp)}` : 'Tap to add a status update'}
                 </p>
@@ -226,10 +227,10 @@ export default function StatusPage() {
                     onClick={() => { const idx = allViewable.findIndex((s) => s.id === items[0].id); if (idx >= 0) setViewingIndex(idx) }}
                     className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-white transition-colors text-left">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-lg font-bold text-white flex-shrink-0 ring-2 ring-emerald-500 ring-offset-2 overflow-hidden">
-                      {latest.imageUrl ? <img src={latest.imageUrl} alt="" className="w-full h-full object-cover" /> : (latest.userName || '?')[0].toUpperCase()}
+                      {latest.imageUrl ? <img src={latest.imageUrl} alt="" className="w-full h-full object-cover" /> : <span>{sanitizeDisplayName(latest.userName).charAt(0).toUpperCase()}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{latest.userName}</p>
+                      <p className="text-sm font-semibold text-gray-900">{sanitizeDisplayName(latest.userName)}</p>
                       <p className="text-xs text-gray-400">{formatTimeAgo(latest.timestamp)}</p>
                     </div>
                     <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">

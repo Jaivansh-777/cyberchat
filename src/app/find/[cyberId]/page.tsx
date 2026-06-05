@@ -6,6 +6,9 @@ import { UserPlus, UserCheck, Loader2, ArrowLeft, MessageCircle, AlertCircle } f
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
+import { UserAvatar } from '@/components/shared/UserAvatar'
+import { ActionButton } from '@/components/shared/ActionButton'
+import { sanitizeDisplayName, safeString } from '@/lib/display-name'
 
 export default function FindUserPage({ params }: { params: { cyberId: string } }) {
   const { user, isLoaded } = useUser()
@@ -88,7 +91,7 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">User Not Found</h2>
             <p className="text-sm text-gray-400 mb-6">
-              No user with ID <span className="font-mono text-gray-600">{params.cyberId}</span>
+              No user with ID <span className="font-mono text-gray-600">{safeString(params.cyberId)}</span>
             </p>
             <Link href="/friends" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-500 text-white text-sm font-medium">
               Search Again
@@ -102,14 +105,14 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
                   <img src={foundUser.image} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
                   <span className="text-4xl font-bold text-blue-500">
-                    {(foundUser.name || '?')[0].toUpperCase()}
+                    {sanitizeDisplayName(foundUser.name).charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
             </div>
 
-            <h2 className="text-xl font-bold text-gray-900">{foundUser.name}</h2>
-            <p className="text-sm font-mono text-gray-400 mt-1">{foundUser.cyberId}</p>
+            <h2 className="text-xl font-bold text-gray-900">{sanitizeDisplayName(foundUser.name)}</h2>
+            <p className="text-sm font-mono text-gray-400 mt-1">{safeString(foundUser.cyberId)}</p>
 
             <div className="mt-6 flex flex-col gap-3">
               {requestSent ? (
@@ -118,19 +121,15 @@ export default function FindUserPage({ params }: { params: { cyberId: string } }
                   Request Sent
                 </div>
               ) : (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
+                <ActionButton
                   onClick={sendRequest}
+                  icon={requestLoading ? undefined : UserPlus}
+                  variant="primary"
+                  loading={requestLoading}
                   disabled={requestLoading}
-                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-blue-500 text-white text-sm font-medium shadow-sm disabled:opacity-50"
-                >
-                  {requestLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="w-4 h-4" />
-                  )}
-                  Add Friend
-                </motion.button>
+                  label="Add Friend"
+                  className="!w-full !justify-center !py-3 !rounded-2xl"
+                />
               )}
 
               {requestError && (

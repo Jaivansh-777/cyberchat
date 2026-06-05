@@ -4,16 +4,19 @@ import { StreamProvider, useStreamClient } from '@/components/shared/StreamProvi
 import { VideoProvider } from '@/components/shared/VideoProvider'
 import { VoiceCallProvider } from '@/components/shared/VoiceCallProvider'
 import { NotificationProvider } from '@/components/shared/NotificationProvider'
+import { SidebarItem } from '@/components/shared/SidebarItem'
+import { SearchInput } from '@/components/shared/SearchInput'
 import {
   MessageCircle, Users, Phone, User, Hash, Circle, UsersRound,
-  Plus, Search, Settings, Moon, Sun, Menu, X,
+  Plus, Settings, Moon, Sun, Menu, X,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserButton, useUser } from '@clerk/nextjs'
 import { useIncomingRequestCount } from '@/hooks/useIncomingRequestCount'
+import { sanitizeDisplayName } from '@/lib/display-name'
 
 const navItems = [
   { href: '/chats', icon: MessageCircle, label: 'Chats' },
@@ -44,16 +47,20 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
     document.documentElement.classList.toggle('dark', next)
   }
 
-  const handleSearch = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      router.push(`/find/${searchQuery.trim().toUpperCase()}`)
+  const handleSearch = (query: string) => {
+    if (query.trim()) {
+      router.push(`/find/${query.trim().toUpperCase()}`)
       onNavClick?.()
     }
   }
 
+  const displayName = sanitizeDisplayName(
+    user?.fullName,
+    user?.primaryEmailAddress?.emailAddress?.split('@')[0],
+  )
+
   return (
     <div className="flex flex-col h-full">
-      {/* Logo + New Chat */}
       <div className="flex items-center justify-between px-5 py-4 flex-shrink-0">
         <Link href="/chats" onClick={onNavClick} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4f7cff] to-indigo-500 flex items-center justify-center shadow-sm">
@@ -71,60 +78,39 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
         </motion.button>
       </div>
 
-      {/* Search */}
       <div className="px-4 pb-3 flex-shrink-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearch}
-            placeholder="Search users..."
-            className="w-full bg-gray-100 border-none rounded-lg py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f7cff]/30 focus:bg-white transition-all"
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSearch={handleSearch}
+          placeholder="Search users..."
+          debounceMs={400}
+        />
       </div>
 
-      {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 scrollbar-cyber">
         {navItems.map((item) => {
           const active = currentBase === item.href
-          const Icon = item.icon
           return (
-            <Link
+            <SidebarItem
               key={item.href}
               href={item.href}
+              icon={item.icon}
+              label={item.label}
+              active={active}
+              badge={item.href === '/friends' ? requestCount : undefined}
               onClick={onNavClick}
-              className={`sidebar-pill relative ${active ? 'sidebar-pill-active' : ''}`}
-            >
-              <div className="relative">
-                <Icon className={`w-5 h-5 ${active ? 'text-[#4f7cff]' : ''}`} />
-                {item.href === '/friends' && requestCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center shadow-md">
-                    {requestCount}
-                  </span>
-                )}
-              </div>
-              <span>{item.label}</span>
-              {active && (
-                <motion.div
-                  layoutId="sidebar-pill-active"
-                  className="absolute inset-0 rounded-[0.625rem] bg-[#eef2ff] -z-10"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-            </Link>
+            />
           )
         })}
       </nav>
 
-      {/* Bottom: User + Settings */}
       <div className="flex-shrink-0 px-3 py-3 border-t border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <UserButton />
-            <span className="text-xs text-gray-600 truncate">
-              {user?.fullName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User'}
+            <span className="text-xs font-medium text-gray-600 truncate">
+              {displayName}
             </span>
           </div>
           <div className="flex items-center gap-0.5">
@@ -158,7 +144,6 @@ export function MobileHeader() {
 
   return (
     <>
-      {/* Top bar on mobile */}
       <div className="md:hidden flex items-center justify-between px-4 h-12 glass-panel flex-shrink-0">
         <div className="flex items-center gap-3">
           {isInChat ? (
@@ -182,7 +167,6 @@ export function MobileHeader() {
         </div>
       </div>
 
-      {/* Mobile drawer overlay */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -256,12 +240,10 @@ function AppProviders({ children }: { children: React.ReactNode }) {
       <VoiceCallProvider userId={userId} userName={userName}>
         <NotificationProvider userId={userId}>
           <div className="flex h-screen overflow-hidden bg-white">
-            {/* Desktop sidebar — always visible md+ */}
             <aside className="hidden md:flex flex-col w-[280px] flex-shrink-0 h-full bg-[#f8fafc] border-r border-gray-200/80 shadow-sidebar">
               <SidebarContent />
             </aside>
 
-            {/* Main content area — flex-1 takes remaining width */}
             <main className="flex-1 flex flex-col min-w-0 h-full bg-white relative">
               <AnimatedContent>{children}</AnimatedContent>
             </main>

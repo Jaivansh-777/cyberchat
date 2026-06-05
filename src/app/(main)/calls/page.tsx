@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { History, PhoneCall, PhoneMissed, PhoneOff, Phone } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+import { safeString } from '@/lib/display-name'
 
 interface CallLog {
   id: string
@@ -53,7 +54,7 @@ export default function CallsPage() {
   }, [])
 
   return (
-    <div className="h-full bg-white flex flex-col pb-16 md:pb-0">
+    <div className="h-full bg-white flex flex-col">
       <div className="px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm">
@@ -74,7 +75,7 @@ export default function CallsPage() {
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Recent Calls</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3">
+      <div className="flex-1 overflow-y-auto px-3 scrollbar-cyber">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -113,18 +114,18 @@ export default function CallsPage() {
                     {statusIcon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-semibold text-gray-900">
                       {isOutgoing ? 'Outgoing call' : 'Incoming call'}
                     </p>
                     <div className="flex items-center gap-2">
                       <p className={`text-[10px] ${log.status === 'missed' ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
                         {statusLabel}
                       </p>
-                      <span className="text-[10px] text-gray-400">·</span>
+                      <span className="text-[10px] text-gray-300">·</span>
                       <p className="text-[10px] text-gray-400">{formatTimeAgo(log.startedAt)}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-mono uppercase">{log.callType}</span>
+                  <span className="text-[10px] text-gray-400 font-mono uppercase">{safeString(log.callType)}</span>
                 </motion.div>
               )
             })}

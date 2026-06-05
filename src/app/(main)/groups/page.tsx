@@ -8,6 +8,8 @@ import {
   Loader2, UserPlus, UserMinus, Settings, MessageCircle,
 } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+import { UserAvatar } from '@/components/shared/UserAvatar'
+import { sanitizeDisplayName } from '@/lib/display-name'
 
 interface GroupInfo {
   id: string
@@ -23,16 +25,6 @@ interface GroupInfo {
     role: string
     user: { clerkId: string; displayName: string; avatarUrl: string | null }
   }[]
-}
-
-function Avatar({ url, name, size = 'md' }: { url?: string | null; name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const dim = size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-14 h-14' : 'w-10 h-10'
-  const text = size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-xl' : 'text-sm'
-  return (
-    <div className={`${dim} rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center ${text} font-bold text-white flex-shrink-0 overflow-hidden`}>
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : (name || '?')[0].toUpperCase()}
-    </div>
-  )
 }
 
 export default function GroupsPage() {
@@ -118,7 +110,7 @@ export default function GroupsPage() {
   }
 
   return (
-    <div className="h-full bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 flex flex-col pb-16 md:pb-0">
+    <div className="h-full bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 flex flex-col">
       <div className="px-5 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
@@ -138,7 +130,7 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-cyber">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
@@ -156,12 +148,12 @@ export default function GroupsPage() {
             const isAdmin = g.members.find(m => m.clerkId === clerkId)?.role === 'admin'
             return (
               <motion.div key={g.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="p-4 rounded-3xl bg-white border border-gray-100 shadow-sm">
+                className="p-4 rounded-3xl bg-white border border-gray-100 shadow-sm premium-card">
                 <div className="flex items-center gap-3">
-                  <Avatar url={g.avatarUrl} name={g.name} size="lg" />
+                  <UserAvatar name={sanitizeDisplayName(g.name)} url={g.avatarUrl} size="lg" gradient="from-emerald-500 to-teal-600" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-gray-900 truncate">{g.name}</h3>
+                      <h3 className="text-sm font-bold text-gray-900 truncate">{sanitizeDisplayName(g.name)}</h3>
                       {isAdmin && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Admin</span>}
                     </div>
                     {g.description && <p className="text-xs text-gray-400 truncate">{g.description}</p>}

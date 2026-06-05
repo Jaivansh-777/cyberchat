@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Hash, Users, UserPlus, ArrowRight } from 'lucide-react'
+import { MessageCircle, Hash, Users, UserPlus } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { MobileHeader } from '@/app/(main)/layout'
+import { sanitizeDisplayName } from '@/lib/display-name'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import type { Channel } from 'stream-chat'
 
 function ChannelListSkeleton() {
@@ -28,10 +30,14 @@ function getDMOtherUser(ch: Channel, userId: string) {
   const members = Object.keys(ch.state?.members || {})
   const otherId = members.find((m) => m !== userId)
   const otherUser = ch.state?.members?.[otherId || '']
+  const name = sanitizeDisplayName(
+    otherUser?.user?.name,
+    otherId,
+  )
   return {
     id: otherId || 'unknown',
-    name: otherUser?.user?.name || otherId || 'User',
-    initial: (otherUser?.user?.name || otherId || 'U')[0].toUpperCase(),
+    name,
+    initial: name.charAt(0).toUpperCase(),
     avatarUrl: otherUser?.user?.image || '',
   }
 }
@@ -140,16 +146,10 @@ export default function ChatsPage() {
                     onClick={() => router.push(`/chats/${ch.id}?type=messaging`)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all text-left group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 overflow-hidden shadow-sm">
-                      {other.avatarUrl ? (
-                        <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        other.initial
-                      )}
-                    </div>
+                    <UserAvatar name={other.name} url={other.avatarUrl} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">{other.name}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">{other.name}</h3>
                         {lastMsg && (
                           <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
                             {new Date(lastMsg.created_at!).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -175,7 +175,7 @@ export default function ChatsPage() {
             <div className="space-y-0.5">
               {teamChs.map((ch, i) => {
                 const chData = ch.data as Record<string, unknown> | undefined
-                const name = (chData?.name as string) || ch.id
+                const name = sanitizeDisplayName((chData?.name as string) || ch.id)
                 const desc = (chData?.description as string) || ''
                 const memberCount = Object.keys(ch.state?.members || {}).length
                 const lastMsg = ch.state?.latestMessages?.[0]
@@ -194,7 +194,7 @@ export default function ChatsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-900 truncate"># {name}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 truncate"># {name}</h3>
                         <div className="flex items-center gap-1.5 text-[10px] text-gray-400 flex-shrink-0 ml-2">
                           <Users className="w-3 h-3" />
                           <span>{memberCount}</span>
@@ -202,7 +202,7 @@ export default function ChatsPage() {
                       </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">
                         {lastMsg
-                          ? `${lastMsg.user?.name || lastMsg.user?.id}: ${lastMsg.text || 'Sent a file'}`
+                          ? `${sanitizeDisplayName(lastMsg.user?.name, lastMsg.user?.id)}: ${lastMsg.text || 'Sent a file'}`
                           : desc || `${memberCount} members`}
                       </p>
                     </div>

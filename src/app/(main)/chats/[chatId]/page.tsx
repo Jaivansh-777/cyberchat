@@ -11,6 +11,7 @@ import {
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { CallUI } from '@/components/shared/CallUI'
 import { MobileHeader } from '@/app/(main)/layout'
+import { sanitizeDisplayName } from '@/lib/display-name'
 import type { Channel, MessageResponse } from 'stream-chat'
 
 const EMOJI_LIST = ['😀','😂','🤣','❤️','🔥','👍','🎉','🙏','😎','💀','💯','✨','🚀','💪','👀','😭','🥺','🤔']
@@ -65,13 +66,13 @@ function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
       <div className={isMe ? 'message-bubble-sent' : 'message-bubble-received'}>
         {message.quoted_message && (
           <div className={`mb-1.5 pl-2 border-l-2 ${isMe ? 'border-white/40' : 'border-[#4f7cff]/30'} opacity-60`}>
-            <p className="text-[10px] font-medium">{message.quoted_message.user?.name || 'User'}</p>
+            <p className="text-[10px] font-medium">{sanitizeDisplayName(message.quoted_message.user?.name)}</p>
             <p className="text-[11px] truncate">{message.quoted_message.text || '[media]'}</p>
           </div>
         )}
         {!isMe && (
           <p className="text-[10px] text-[#4f7cff]/70 font-medium mb-1">
-            {message.user?.name || message.user?.id || 'Anonymous'}
+            {sanitizeDisplayName(message.user?.name, message.user?.id)}
           </p>
         )}
         {message.text && (
@@ -253,7 +254,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             const members = Object.keys(ch.state?.members || {})
             const otherId = members.find((m) => m !== userId)
             const otherMember = ch.state?.members?.[otherId || '']
-            const otherName = otherMember?.user?.name || otherId || 'User'
+            const otherName = sanitizeDisplayName(otherMember?.user?.name, otherId)
             setOtherUserName(otherName)
             if (otherId) setOtherUserId(otherId)
           }
@@ -388,7 +389,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     setShowEmoji(false)
   }
 
-  const headerTitle = isDM ? (otherUserName || 'User') : `# ${channelName}`
+  const headerTitle = isDM ? sanitizeDisplayName(otherUserName) : `# ${channelName}`
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -484,7 +485,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         {replyTo && (
           <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-blue-50 border border-blue-100">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-medium text-[#4f7cff]">{replyTo.user?.name || 'User'}</p>
+              <p className="text-[10px] font-medium text-[#4f7cff]">{sanitizeDisplayName(replyTo.user?.name)}</p>
               <p className="text-xs text-gray-600 truncate">{replyTo.text || '[media]'}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1 rounded-lg hover:bg-blue-100">
