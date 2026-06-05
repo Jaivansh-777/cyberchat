@@ -245,6 +245,7 @@ function AppProviders({ children }: { children: React.ReactNode }) {
             </aside>
 
             <main className="flex-1 flex flex-col min-w-0 h-full bg-white relative">
+              <MobileHeader />
               <AnimatedContent>{children}</AnimatedContent>
             </main>
           </div>

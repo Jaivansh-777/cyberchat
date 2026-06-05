@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { CallUI } from '@/components/shared/CallUI'
-import { MobileHeader } from '@/app/(main)/layout'
 import { sanitizeDisplayName } from '@/lib/display-name'
 import type { Channel, MessageResponse } from 'stream-chat'
 
@@ -393,11 +392,6 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Mobile header with back button */}
-      <div className="md:hidden">
-        <MobileHeader />
-      </div>
-
       {/* Desktop chat header */}
       <div className="hidden md:flex items-center gap-2 px-5 py-3 border-b border-gray-100 flex-shrink-0 bg-white/80 backdrop-blur-sm">
         <motion.button

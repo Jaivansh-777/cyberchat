@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Hash, Users, UserPlus } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
-import { MobileHeader } from '@/app/(main)/layout'
 import { sanitizeDisplayName } from '@/lib/display-name'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import type { Channel } from 'stream-chat'
@@ -79,7 +78,7 @@ export default function ChatsPage() {
   if (loading) {
     return (
       <div className="h-full flex flex-col bg-white">
-        <MobileHeader />
+
         <ChannelListSkeleton />
       </div>
     )
@@ -91,7 +90,7 @@ export default function ChatsPage() {
   if (channels.length === 0) {
     return (
       <div className="h-full flex flex-col bg-white">
-        <MobileHeader />
+
         <div className="flex-1 flex items-center justify-center px-8">
           <div className="flex flex-col items-center text-center max-w-sm">
             <div className="empty-state-icon">
@@ -125,7 +124,6 @@ export default function ChatsPage() {
 
   return (
     <div className="h-full flex flex-col bg-white">
-      <MobileHeader />
       <div className="flex-1 overflow-y-auto scrollbar-cyber px-4 py-4 space-y-5">
         {dmChs.length > 0 && (
           <div>
