@@ -16,7 +16,11 @@ export async function syncUser(clerkUser: {
   imageUrl?: string
 }) {
   const email = clerkUser.email || ''
-  const displayName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username || email.split('@')[0] || 'User'
+  const displayName =
+    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
+    clerkUser.username ||
+    email.split('@')[0] ||
+    `CyberUser_${clerkUser.id.slice(-6)}`
 
   let user = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } })
 

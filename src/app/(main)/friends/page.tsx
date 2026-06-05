@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -56,6 +56,7 @@ export default function FriendsPage() {
   const [finding, setFinding] = useState(false)
   const [foundUser, setFoundUser] = useState<{ id: string; cyberId: string; name: string; image: string } | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const [requestSent, setRequestSent] = useState(false)
   const [requestLoading, setRequestLoading] = useState(false)
 
@@ -64,6 +65,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<Friend[]>([])
   const [loading, setLoading] = useState(true)
   const [newRequestToast, setNewRequestToast] = useState<string | null>(null)
+  const prevIncomingIds = useRef<string[]>([])
 
   const loadData = useCallback(async () => {
     if (!clerkId) return
@@ -78,13 +80,13 @@ export default function FriendsPage() {
       const friendsData = await friendsRes.json()
 
       if (inData.requests) {
-        const newIds = inData.requests.map((r: IncomingRequest) => r.id)
-        const oldIds = incoming.map((r) => r.id)
-        const fresh = newIds.filter((id: string) => !oldIds.includes(id))
-        if (fresh.length > 0 && incoming.length > 0) {
-          const newest = inData.requests.find((r: IncomingRequest) => r.id === fresh[0])
+        const ids = inData.requests.map((r: IncomingRequest) => r.id)
+        const newIds = ids.filter((id: string) => !prevIncomingIds.current.includes(id))
+        if (newIds.length > 0 && prevIncomingIds.current.length > 0) {
+          const newest = inData.requests.find((r: IncomingRequest) => r.id === newIds[0])
           if (newest) setNewRequestToast(newest.senderName)
         }
+        prevIncomingIds.current = ids
         setIncoming(inData.requests)
       }
       if (outData.requests) setOutgoing(outData.requests)
@@ -92,13 +94,13 @@ export default function FriendsPage() {
     } catch {} finally {
       setLoading(false)
     }
-  }, [clerkId, incoming])
+  }, [clerkId])
 
   useEffect(() => {
     loadData()
     const interval = setInterval(loadData, 10000)
     return () => clearInterval(interval)
-  }, [clerkId])
+  }, [loadData])
 
   const findUser = async () => {
     const id = targetId.trim().toUpperCase()
@@ -107,11 +109,23 @@ export default function FriendsPage() {
     setNotFound(false)
     setFoundUser(null)
     setRequestSent(false)
+    setSearchError('')
+
+    if (id === user?.publicMetadata?.cyberId) {
+      setSearchError('That\'s your own Cyber ID!')
+      setFinding(false)
+      return
+    }
+
     try {
       const res = await fetch(`/api/friends/find-user?cyberId=${encodeURIComponent(id)}`)
       if (res.status === 404) setNotFound(true)
       else if (res.ok) {
         const data = await res.json()
+        if (data.user.id === clerkId) {
+          setSearchError('That\'s you! You can\'t add yourself.')
+          return
+        }
         setFoundUser(data.user)
       } else setNotFound(true)
     } catch { setNotFound(true) }
@@ -126,11 +140,16 @@ export default function FriendsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toCyberId }),
       })
-      if (res.ok) setRequestSent(true)
-      else {
+      if (res.ok) {
+        setRequestSent(true)
+        loadData()
+      } else {
         const data = await res.json()
         if (data.error === 'Request already sent' || data.error === 'Already friends') {
           setRequestSent(true)
+          loadData()
+        } else {
+          setSearchError(data.error || 'Failed to send request')
         }
       }
     } catch {} finally {
@@ -386,6 +405,7 @@ export default function FriendsPage() {
                   setFoundUser(null)
                   setNotFound(false)
                   setRequestSent(false)
+                  setSearchError('')
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && findUser()}
                 placeholder="CYBERXXXXXXX..."
@@ -441,6 +461,20 @@ export default function FriendsPage() {
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700">
                   <UserCheck className="w-4 h-4 flex-shrink-0" />
                   <p className="text-xs font-medium">Request sent! Waiting for them to accept.</p>
+                </div>
+              </motion.div>
+            )}
+
+            {searchError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 overflow-hidden"
+              >
+                <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs font-medium">{searchError}</p>
                 </div>
               </motion.div>
             )}

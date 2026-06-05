@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { Conversation, Message, CyberUser, FriendRequest, CallLog, Notification, Group } from '@/types'
+import type { CyberUser, FriendRequest, CallLog, Group, Conversation, Message, Notification } from '@/types'
 
 interface ChatState {
   conversations: Conversation[]

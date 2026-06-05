@@ -189,8 +189,6 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   useEffect(() => {
     if (!client || !chatId || !userId) return
 
@@ -202,13 +200,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       try {
         const channelType = isDM ? 'messaging' : 'team'
         const filter = { type: channelType, id: chatId }
-        const result = await client.queryChannels(filter, {}, { watch: true })
-        if (cancelled) return
+        let [ch] = await client.queryChannels(filter, {}, { watch: true })
 
-        let ch: Channel | null = null
-        if (result.length > 0) {
-          ch = result[0]
-        } else if (isDM) {
+        if (!ch && isDM) {
           const friendId = searchParams?.get('friendId')
           if (friendId) {
             const createRes = await fetch('/api/stream/create-dm', {
@@ -217,23 +211,26 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               body: JSON.stringify({ targetUserId: friendId }),
             })
             if (createRes.ok) {
-              const retry = await client.queryChannels(
-                { type: 'messaging', id: chatId },
-                {},
-                { watch: true }
-              )
-              if (retry.length > 0) ch = retry[0]
+              const retry = await client.queryChannels(filter, {}, { watch: true })
+              ch = retry[0]
             }
           }
-          if (!ch) return
-        } else {
+          if (!ch && friendId) {
+            const dmId = chatId
+            ch = client.channel('messaging', dmId, { members: [userId, friendId] } as any)
+            await ch.create()
+            await ch.watch()
+          }
+        }
+
+        if (!ch && !isDM) {
           ch = client.channel('team', chatId, {
             name: chatId.charAt(0).toUpperCase() + chatId.slice(1),
-            team: 'global',
           } as any)
           await ch.create()
         }
-        if (!ch) return
+
+        if (!ch || cancelled) return
 
         if (!isDM) {
           await fetch('/api/stream/join', {
@@ -265,17 +262,6 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           (a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime()
         )
         if (!cancelled) setMessages(msgs)
-
-        pollRef.current = setInterval(async () => {
-          if (cancelled) return
-          try {
-            const r = await ch.query({ messages: { limit: 100 } })
-            const newMsgs = (r.messages as unknown as MessageResponse[]).sort(
-              (a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime()
-            )
-            if (!cancelled) setMessages(newMsgs)
-          } catch {}
-        }, 3000)
       } catch (err) {
         console.error('Failed to load channel', err)
       }
@@ -286,7 +272,6 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     return () => {
       cancelled = true
       unsubs.forEach((u) => u())
-      if (pollRef.current) clearInterval(pollRef.current)
     }
   }, [client, chatId, userId, isDM])
 

@@ -114,7 +114,6 @@ function AudioElement({ participant }: { participant: import('@stream-io/video-c
 function AudioBoundary() {
   const { useRemoteParticipants } = useCallStateHooks()
   const participants = useRemoteParticipants()
-  console.log('[VoiceCall] Remote participants:', participants.length, participants.map(p => ({ id: p.userId, hasAudio: !!p.audioStream })))
   return (
     <div style={{ display: 'none' }}>
       {participants.map(p => (
@@ -145,8 +144,6 @@ export function VoiceCallProvider({ children, userId, userName }: {
     console.log('[VoiceCall]', ...args)
   }, [])
 
-  log('Mount — userId:', userId, 'videoClient:', !!videoClient)
-
   const cleanupActiveCall = useCallback(() => {
     stopRingtone(ringtoneRef)
     setActiveCall(null)
@@ -163,16 +160,8 @@ export function VoiceCallProvider({ children, userId, userName }: {
     const client = videoClient as any
 
     client.on('call.ring', (e: any) => {
-      log('📞 call.ring RECEIVED', {
-        callId: e.call?.id,
-        callType: e.call?.type,
-        callerId: e.user?.id,
-        callerName: e.user?.name,
-        members: e.members?.map((m: any) => m.user_id),
-      })
-
       const callType = e.call?.type || 'default'
-      const callId = e.call?.id
+      const callId = e.call?.id || (e.call_cid?.split(':')[1])
       const callerId = e.user?.id || ''
       const callerName = e.user?.name || callerId || 'User'
 

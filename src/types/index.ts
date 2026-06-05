@@ -1,14 +1,13 @@
 export interface CyberUser {
   id: string
   clerkId: string
+  cyberId: string
   username: string
-  email: string
   displayName: string | null
   avatarUrl: string | null
+  email: string
   bio: string | null
-  onlineStatus: boolean
   lastSeen: string
-  createdAt: string
 }
 
 export interface ProfileData {
@@ -31,12 +30,36 @@ export interface FriendRequest {
   createdAt: string
 }
 
-export interface Friendship {
+export interface Group {
   id: string
-  userId: string
-  friendId: string
-  friend: CyberUser
+  name: string
+  description: string | null
+  avatarUrl: string | null
+  creatorId: string
+  inviteCode: string
+  streamChannelId: string
+  members: GroupMember[]
   createdAt: string
+}
+
+export interface GroupMember {
+  id: string
+  groupId: string
+  clerkId: string
+  role: 'admin' | 'member'
+  joinedAt: string
+  user: CyberUser
+}
+
+export interface CallLog {
+  id: string
+  callerId: string
+  receiverId: string
+  callType: 'audio' | 'video'
+  status: 'missed' | 'completed' | 'cancelled'
+  duration: number | null
+  startedAt: string
+  endedAt: string | null
 }
 
 export interface Conversation {
@@ -63,47 +86,6 @@ export interface Message {
   createdAt: string
 }
 
-export interface Group {
-  id: string
-  name: string
-  description: string | null
-  avatarUrl: string | null
-  creatorId: string
-  creator: CyberUser
-  members: GroupMember[]
-  createdAt: string
-}
-
-export interface GroupMember {
-  id: string
-  groupId: string
-  userId: string
-  role: 'ADMIN' | 'MODERATOR' | 'MEMBER'
-  user: CyberUser
-  joinedAt: string
-}
-
-export interface CallLog {
-  id: string
-  callerId: string
-  calleeId: string
-  type: 'VOICE' | 'VIDEO'
-  status: 'MISSED' | 'INCOMING' | 'OUTGOING' | 'ENDED'
-  duration: number
-  caller: CyberUser
-  callee: CyberUser
-  startedAt: string
-  endedAt: string | null
-}
-
-export interface BlockedUser {
-  id: string
-  blockerId: string
-  blockedId: string
-  blocked: CyberUser
-  createdAt: string
-}
-
 export interface Notification {
   id: string
   userId: string
@@ -115,13 +97,4 @@ export interface Notification {
   createdAt: string
 }
 
-export interface Story {
-  id: string
-  userId: string
-  user: CyberUser
-  mediaUrl: string
-  createdAt: string
-  expiresAt: string
-}
-
-export type NavTab = 'chats' | 'friends' | 'calls' | 'notifications' | 'settings'
+export type NavTab = 'chats' | 'friends' | 'calls' | 'status' | 'groups' | 'profile' | 'settings'

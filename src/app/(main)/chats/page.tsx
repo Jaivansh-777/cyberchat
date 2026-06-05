@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Hash, Users } from 'lucide-react'
+import { MessageCircle, Hash, Users, UserPlus, RefreshCw } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import type { Channel } from 'stream-chat'
 
@@ -42,7 +42,7 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true)
 
   const ensureChannels = useCallback(async () => {
-    if (!client || !userId) return
+    if (!client || !userId) return []
 
     try {
       await fetch('/api/stream/join', {
@@ -62,25 +62,11 @@ export default function ChatsPage() {
   }, [client, userId])
 
   useEffect(() => {
-    let cancelled = false
     setLoading(true)
-
     ensureChannels().then((chs) => {
-      if (!cancelled) {
-        setChannels(chs || [])
-        setLoading(false)
-      }
+      setChannels(chs || [])
+      setLoading(false)
     })
-
-    const interval = setInterval(async () => {
-      const chs = await ensureChannels()
-      if (!cancelled && chs) setChannels(chs)
-    }, 15000)
-
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
   }, [ensureChannels])
 
   if (loading) {
@@ -109,21 +95,42 @@ export default function ChatsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-cyber px-3 py-3">
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {channels.length === 0 ? (
             <motion.div
+              key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center py-16 px-8 text-center"
             >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/10 to-indigo-500/10 flex items-center justify-center mb-3">
-                <MessageCircle className="w-8 h-8 text-accent/40" />
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-accent/10 to-indigo-500/10 flex items-center justify-center mb-4">
+                <MessageCircle className="w-10 h-10 text-accent/40" />
               </div>
-              <p className="text-sm text-gray-400">No channels yet</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">No channels yet</h2>
+              <p className="text-sm text-gray-400 mb-6 max-w-xs">
+                Add friends to start chatting, or join a group channel to get started.
+              </p>
+              <div className="flex gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push('/friends')}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-sm font-medium shadow-lg"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add Friends
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push('/groups')}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+                >
+                  <Users className="w-4 h-4" />
+                  Browse Groups
+                </motion.button>
+              </div>
             </motion.div>
           ) : (
-            <>
-              {/* DMs Section */}
+            <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {dmChs.length > 0 && (
                 <div className="mb-4">
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 px-2">
@@ -141,9 +148,9 @@ export default function ChatsPage() {
                           transition={{ delay: i * 0.03 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => router.push(`/chats/${ch.id}?type=messaging`)}
-                          className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors text-left"
+                          className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-all text-left"
                         >
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 overflow-hidden">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 overflow-hidden shadow-sm">
                             {other.avatarUrl ? (
                               <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -165,7 +172,6 @@ export default function ChatsPage() {
                 </div>
               )}
 
-              {/* Channels Section */}
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 px-2">
                   Channels
@@ -207,7 +213,7 @@ export default function ChatsPage() {
                   })}
                 </div>
               </div>
-            </>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
