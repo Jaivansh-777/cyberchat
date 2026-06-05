@@ -6,10 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Send, Paperclip, Mic, Check, CheckCheck,
   MessageCircle, Hash, FileText, Download, X,
-  Smile, User, Bug, Phone, CornerDownRight,
+  Smile, User, Bug, Phone, CornerDownRight, MoreHorizontal,
 } from 'lucide-react'
 import { useStreamClient } from '@/components/shared/StreamProvider'
 import { CallUI } from '@/components/shared/CallUI'
+import { MobileHeader } from '@/app/(main)/layout'
 import type { Channel, MessageResponse } from 'stream-chat'
 
 const EMOJI_LIST = ['😀','😂','🤣','❤️','🔥','👍','🎉','🙏','😎','💀','💯','✨','🚀','💪','👀','😭','🥺','🤔']
@@ -22,8 +23,8 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
       {isImage ? (
         <img src={URL.createObjectURL(file)} alt="" className="w-10 h-10 rounded-lg object-cover" />
       ) : (
-        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-          <FileText className="w-5 h-5 text-accent" />
+        <div className="w-10 h-10 rounded-lg bg-[#4f7cff]/10 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-[#4f7cff]" />
         </div>
       )}
       <span className="text-xs text-gray-700 truncate flex-1">{file.name}</span>
@@ -63,13 +64,13 @@ function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
     >
       <div className={isMe ? 'message-bubble-sent' : 'message-bubble-received'}>
         {message.quoted_message && (
-          <div className={`mb-1.5 pl-2 border-l-2 ${isMe ? 'border-white/40' : 'border-accent/30'} opacity-60`}>
+          <div className={`mb-1.5 pl-2 border-l-2 ${isMe ? 'border-white/40' : 'border-[#4f7cff]/30'} opacity-60`}>
             <p className="text-[10px] font-medium">{message.quoted_message.user?.name || 'User'}</p>
             <p className="text-[11px] truncate">{message.quoted_message.text || '[media]'}</p>
           </div>
         )}
         {!isMe && (
-          <p className="text-[10px] text-accent/70 font-medium mb-1">
+          <p className="text-[10px] text-[#4f7cff]/70 font-medium mb-1">
             {message.user?.name || message.user?.id || 'Anonymous'}
           </p>
         )}
@@ -93,7 +94,7 @@ function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 p-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors"
               >
-                <FileText className="w-4 h-4 text-accent" />
+                <FileText className="w-4 h-4 text-[#4f7cff]" />
                 <span className="text-xs truncate">{att.fallback || att.title || 'File'}</span>
                 <Download className="w-3 h-3 text-gray-400 ml-auto" />
               </a>
@@ -111,7 +112,7 @@ function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
       <div className={`flex items-center gap-1 mt-0.5 ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
         <button
           onClick={() => onReply?.(message)}
-          className={`text-[10px] text-gray-300 hover:text-gray-500 transition-colors ${replyingTo === message.id ? 'text-accent' : ''}`}
+          className={`text-[10px] text-gray-300 hover:text-gray-500 transition-colors ${replyingTo === message.id ? 'text-[#4f7cff]' : ''}`}
         >
           <CornerDownRight className="w-3 h-3" />
         </button>
@@ -128,7 +129,7 @@ function MessageBubble({ message, isMe, channel, onReply, replyingTo }: {
         </span>
         {isMe && (
           message.status === 'read'
-            ? <CheckCheck className="w-3 h-3 text-accent" />
+            ? <CheckCheck className="w-3 h-3 text-[#4f7cff]" />
             : <Check className="w-3 h-3 text-gray-300" />
         )}
       </div>
@@ -189,6 +190,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!client || !chatId || !userId) return
 
@@ -389,23 +391,29 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const headerTitle = isDM ? (otherUserName || 'User') : `# ${channelName}`
 
   return (
-    <div className="flex flex-col h-screen bg-white pb-16 md:pb-0">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white/80 backdrop-blur-sm">
+    <div className="flex flex-col h-full bg-white">
+      {/* Mobile header with back button */}
+      <div className="md:hidden">
+        <MobileHeader />
+      </div>
+
+      {/* Desktop chat header */}
+      <div className="hidden md:flex items-center gap-2 px-5 py-3 border-b border-gray-100 flex-shrink-0 bg-white/80 backdrop-blur-sm">
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={() => router.push('/chats')}
-          className="p-1 rounded-xl hover:bg-gray-50"
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-400" />
+          <ArrowLeft className="w-4 h-4" />
         </motion.button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={`w-9 h-9 rounded-2xl bg-gradient-to-br ${isDM ? 'from-emerald-400 to-teal-500' : 'from-accent/10 to-indigo-500/10'} flex items-center justify-center flex-shrink-0`}>
+          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${isDM ? 'from-emerald-400 to-teal-500' : 'from-[#4f7cff]/10 to-indigo-500/10'} flex items-center justify-center flex-shrink-0`}>
             {isDM ? (
               <span className="text-sm font-bold text-white">
                 {(otherUserName || '?')[0].toUpperCase()}
               </span>
             ) : (
-              <Hash className="w-5 h-5 text-accent" />
+              <Hash className="w-5 h-5 text-[#4f7cff]" />
             )}
           </div>
           <div className="min-w-0">
@@ -413,28 +421,31 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <p className="text-[10px] text-gray-400">{isDM ? 'Direct message' : 'Channel'}</p>
           </div>
         </div>
-        {isDM && (
+        <div className="flex items-center gap-1">
+          {isDM && (
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => setPendingCall('voice')}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-emerald-500 transition-colors"
+              title="Voice call"
+            >
+              <Phone className="w-4 h-4" />
+            </motion.button>
+          )}
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={() => setPendingCall('voice')}
-            className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-emerald-500"
-            title="Voice call"
+            onClick={() => setShowDebug(!showDebug)}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Debug"
           >
-            <Phone className="w-4 h-4" />
+            <Bug className="w-4 h-4" />
           </motion.button>
-        )}
-        <motion.button
-          whileTap={{ scale: 0.85 }}
-          onClick={() => setShowDebug(!showDebug)}
-          className="p-1.5 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-gray-500"
-          title="Toggle debug panel"
-        >
-          <Bug className="w-4 h-4" />
-        </motion.button>
+        </div>
       </div>
 
+      {/* Debug panel */}
       {showDebug && (
-        <div className="px-4 py-3 bg-gray-900 text-green-400 text-[11px] font-mono space-y-1 border-b border-gray-800">
+        <div className="px-5 py-3 bg-gray-900 text-green-400 text-[11px] font-mono space-y-1 border-b border-gray-800">
           <p>User: {userId || '—'}</p>
           <p>Channel ID: {chatId}</p>
           <p>Type: {isDM ? 'messaging' : 'team'}</p>
@@ -447,11 +458,12 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto scrollbar-cyber px-4 py-4 space-y-1 bg-gradient-to-b from-white via-blue-50/20 to-indigo-50/10">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto scrollbar-cyber px-5 py-5 space-y-1 chat-bg">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/10 to-indigo-500/10 flex items-center justify-center mb-3">
-              <MessageCircle className="w-8 h-8 text-accent/40" />
+            <div className="w-16 h-16 rounded-2xl bg-[#4f7cff]/10 flex items-center justify-center mb-3">
+              <MessageCircle className="w-8 h-8 text-[#4f7cff]/40" />
             </div>
             <p className="text-sm text-gray-400">No messages yet. Say hello!</p>
           </div>
@@ -467,11 +479,12 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="px-3 py-2 border-t border-gray-100 flex-shrink-0 bg-white">
+      {/* Input area */}
+      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
         {replyTo && (
           <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-blue-50 border border-blue-100">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-medium text-blue-600">{replyTo.user?.name || 'User'}</p>
+              <p className="text-[10px] font-medium text-[#4f7cff]">{replyTo.user?.name || 'User'}</p>
               <p className="text-xs text-gray-600 truncate">{replyTo.text || '[media]'}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1 rounded-lg hover:bg-blue-100">
@@ -503,20 +516,18 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             className="hidden"
             onChange={handleFileSelect}
           />
-          <motion.button
-            whileTap={{ scale: 0.85 }}
+          <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 hover:bg-gray-200 flex-shrink-0"
+            className="p-2.5 rounded-xl bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors flex-shrink-0"
           >
             <Paperclip className="w-5 h-5" />
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.85 }}
+          </button>
+          <button
             onClick={() => setShowEmoji(!showEmoji)}
-            className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 hover:bg-gray-200 flex-shrink-0"
+            className="p-2.5 rounded-xl bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors flex-shrink-0"
           >
             <Smile className="w-5 h-5" />
-          </motion.button>
+          </button>
           <div className="flex-1 relative">
             <input
               value={input}
@@ -537,30 +548,25 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               }}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Type a message..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 px-4 pr-12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-accent/50 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 pr-12 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#4f7cff]/50 focus:ring-2 focus:ring-[#4f7cff]/10 transition-all"
             />
           </div>
           {input.trim() || attachFile ? (
-            <motion.button
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              whileTap={{ scale: 0.85 }}
+            <button
               onClick={sendMessage}
               disabled={sending}
-              className="p-2.5 rounded-2xl bg-gradient-to-r from-accent to-accent-dark text-white shadow-sm flex-shrink-0 disabled:opacity-50"
+              className="p-2.5 rounded-xl bg-[#4f7cff] text-white shadow-sm hover:bg-[#3b5fd9] transition-colors flex-shrink-0 disabled:opacity-50"
             >
               <Send className={`w-5 h-5 ${sending ? 'animate-pulse' : ''}`} />
-            </motion.button>
+            </button>
           ) : (
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              className="p-2.5 rounded-2xl bg-gray-100 text-gray-400 flex-shrink-0"
-            >
+            <button className="p-2.5 rounded-xl bg-gray-100 text-gray-400 flex-shrink-0">
               <Mic className="w-5 h-5" />
-            </motion.button>
+            </button>
           )}
         </div>
       </div>
+
       <CallUI
         channelId={chatId}
         otherUserId={otherUserId}
