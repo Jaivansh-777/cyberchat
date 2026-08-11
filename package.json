@@ -1,0 +1,24 @@
+{
+  "name": "cyberchat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
+    "start": "cd frontend && npm start",
+    "lint": "cd frontend && npm run lint",
+    "db:reset-chat-data": "npx tsx scripts/reset-chat-data.ts",
+    "db:seed-default-groups": "npx tsx scripts/seed-default-groups.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "prisma": "^6.19.3",
+    "stream-chat": "^9.44.2",
+    "svix": "^1.95.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}
